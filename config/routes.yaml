@@ -1,0 +1,10 @@
+controllers:
+    resource:
+        path: ../src/Controller/
+        namespace: App\Controller
+    type: attribute
+
+health_check:
+    path: /health
+    controller: App\Controller\HealthController::check
+    methods: [GET]

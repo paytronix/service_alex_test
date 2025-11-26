@@ -1,0 +1,18 @@
+snc_redis:
+    clients:
+        default:
+            type: phpredis
+            alias: default
+            dsn: '%env(REDIS_URL)%'
+            logging: '%kernel.debug%'
+            options:
+                connection_timeout: 5
+                read_write_timeout: 0
+        cache:
+            type: phpredis
+            alias: cache
+            dsn: '%env(REDIS_URL)%'
+            logging: false
+            options:
+                connection_timeout: 5
+                read_write_timeout: 0
