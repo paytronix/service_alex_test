@@ -10,7 +10,7 @@ doctrine_mongodb:
     default_database: '%env(MONGODB_DB)%'
     document_managers:
         default:
-            auto_mapping: true
+            auto_mapping: false
             mappings:
                 App:
                     type: attribute
@@ -18,6 +18,12 @@ doctrine_mongodb:
                     prefix: App\Document
                     is_bundle: false
                     alias: App
+                Infrastructure:
+                    type: xml
+                    dir: '%kernel.project_dir%/src/Infrastructure/Persistence/MongoDB/Mapping'
+                    prefix: App\Infrastructure\Persistence\MongoDB\Document
+                    is_bundle: false
+                    alias: Infrastructure
             filters: []
 
 when@test:
