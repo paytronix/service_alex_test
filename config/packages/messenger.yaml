@@ -1,8 +1,15 @@
 framework:
     messenger:
         failure_transport: failed
+        default_bus: messenger.bus.default
+
+        buses:
+            messenger.bus.default: ~
 
         transports:
+            sync:
+                dsn: 'sync://'
+
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -30,3 +37,28 @@ framework:
 
         routing:
             App\Message\ExampleMessage: async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'
+
+when@prod:
+    framework:
+        messenger:
+            transports:
+                async:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: messages
+                            type: direct
+                        queues:
+                            messages:
+                                binding_keys: [messages]
+                    retry_strategy:
+                        max_retries: 5
+                        delay: 1000
+                        multiplier: 2
+                        max_delay: 60000
