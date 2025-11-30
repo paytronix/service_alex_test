@@ -1,0 +1,5 @@
+order_controllers:
+    resource:
+        path: ../../src/Interface/Http/Controller/
+        namespace: App\Interface\Http\Controller
+    type: attribute
