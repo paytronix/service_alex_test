@@ -10,6 +10,10 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Document/'
+            - '../src/Domain/Entity/'
+            - '../src/Domain/ValueObject/'
+            - '../src/Domain/Event/'
+            - '../src/Infrastructure/Persistence/MongoDB/Document/'
             - '../src/Kernel.php'
 
     App\Controller\:
@@ -19,3 +23,17 @@ services:
     App\MessageHandler\:
         resource: '../src/MessageHandler/'
         tags: ['messenger.message_handler']
+
+    App\Domain\Repository\OrderRepositoryInterface:
+        alias: App\Infrastructure\Persistence\MongoDB\Repository\OrderRepository
+
+    App\Domain\Repository\OrderItemRepositoryInterface:
+        alias: App\Infrastructure\Persistence\MongoDB\Repository\OrderItemRepository
+
+    App\Infrastructure\Persistence\MongoDB\Repository\OrderRepository:
+        arguments:
+            $documentManager: '@doctrine_mongodb.odm.document_manager'
+
+    App\Infrastructure\Persistence\MongoDB\Repository\OrderItemRepository:
+        arguments:
+            $documentManager: '@doctrine_mongodb.odm.document_manager'

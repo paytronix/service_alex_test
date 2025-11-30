@@ -24,8 +24,8 @@ RUN docker-php-ext-install \
     mbstring \
     pdo
 
-# Install MongoDB extension
-RUN pecl install mongodb && docker-php-ext-enable mongodb
+# Install MongoDB extension (version 1.19.x for compatibility with doctrine/mongodb-odm-bundle)
+RUN pecl install mongodb-1.19.4 && docker-php-ext-enable mongodb
 
 # Install Redis extension
 RUN pecl install redis && docker-php-ext-enable redis
@@ -60,11 +60,15 @@ RUN apk add --no-cache \
     libzip \
     oniguruma \
     rabbitmq-c \
-    fcgi
+    fcgi \
+    supervisor
 
 # Copy PHP extensions from builder
 COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+
+# Copy Composer from builder for development use
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Create non-root user
 RUN addgroup -g 1000 appgroup && \

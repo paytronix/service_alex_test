@@ -4,14 +4,36 @@ doctrine_mongodb:
     connections:
         default:
             server: '%env(MONGODB_URL)%'
-            options: {}
+            options:
+                connectTimeoutMS: 3000
+                socketTimeoutMS: 30000
     default_database: '%env(MONGODB_DB)%'
     document_managers:
         default:
-            auto_mapping: true
+            auto_mapping: false
             mappings:
                 App:
                     type: attribute
                     dir: '%kernel.project_dir%/src/Document'
                     prefix: App\Document
                     is_bundle: false
+                    alias: App
+                Infrastructure:
+                    type: xml
+                    dir: '%kernel.project_dir%/src/Infrastructure/Persistence/MongoDB/Mapping'
+                    prefix: App\Infrastructure\Persistence\MongoDB\Document
+                    is_bundle: false
+                    alias: Infrastructure
+            filters: []
+
+when@test:
+    doctrine_mongodb:
+        connections:
+            default:
+                server: '%env(MONGODB_URL)%'
+        default_database: '%env(MONGODB_DB)%'
+
+when@prod:
+    doctrine_mongodb:
+        auto_generate_proxy_classes: false
+        auto_generate_hydrator_classes: false
