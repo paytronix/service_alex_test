@@ -1,0 +1,29 @@
+framework:
+    messenger:
+        routing:
+            # Commands are routed to async transport for production
+            # but can be handled synchronously in tests
+            App\Application\Command\CreateOrderCommand: async
+            App\Application\Command\UpdateOrderStatusCommand: async
+
+            # Queries are always handled synchronously
+            App\Application\Query\GetOrderQuery: sync
+
+when@test:
+    framework:
+        messenger:
+            routing:
+                # In test environment, all commands are handled synchronously
+                App\Application\Command\CreateOrderCommand: sync
+                App\Application\Command\UpdateOrderStatusCommand: sync
+                App\Application\Query\GetOrderQuery: sync
+
+when@dev:
+    framework:
+        messenger:
+            routing:
+                # In dev environment, commands can be async or sync based on preference
+                # Using sync for easier debugging
+                App\Application\Command\CreateOrderCommand: sync
+                App\Application\Command\UpdateOrderStatusCommand: sync
+                App\Application\Query\GetOrderQuery: sync
