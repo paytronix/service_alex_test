@@ -14,16 +14,34 @@ framework:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     exchange:
-                        name: messages
-                        type: direct
+                        name: orders
+                        type: topic
                     queues:
-                        messages:
-                            binding_keys: [messages]
+                        orders_default:
+                            binding_keys:
+                                - 'order.#'
                 retry_strategy:
                     max_retries: 3
                     delay: 1000
                     multiplier: 2
-                    max_delay: 0
+                    max_delay: 60000
+
+            async_priority_high:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: orders_priority
+                        type: topic
+                    queues:
+                        orders_priority:
+                            binding_keys:
+                                - 'order.submitted'
+                                - 'order.cancelled'
+                retry_strategy:
+                    max_retries: 5
+                    delay: 500
+                    multiplier: 2
+                    max_delay: 30000
 
             failed:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
@@ -37,12 +55,17 @@ framework:
 
         routing:
             App\Message\ExampleMessage: async
+            App\Infrastructure\Messaging\Message\OrderCreatedMessage: async
+            App\Infrastructure\Messaging\Message\OrderSubmittedMessage: async_priority_high
+            App\Infrastructure\Messaging\Message\OrderCancelledMessage: async_priority_high
 
 when@test:
     framework:
         messenger:
             transports:
                 async: 'in-memory://'
+                async_priority_high: 'in-memory://'
+                failed: 'in-memory://'
 
 when@prod:
     framework:
@@ -52,13 +75,30 @@ when@prod:
                     dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                     options:
                         exchange:
-                            name: messages
-                            type: direct
+                            name: orders
+                            type: topic
                         queues:
-                            messages:
-                                binding_keys: [messages]
+                            orders_default:
+                                binding_keys:
+                                    - 'order.#'
                     retry_strategy:
                         max_retries: 5
                         delay: 1000
                         multiplier: 2
                         max_delay: 60000
+                async_priority_high:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: orders_priority
+                            type: topic
+                        queues:
+                            orders_priority:
+                                binding_keys:
+                                    - 'order.submitted'
+                                    - 'order.cancelled'
+                    retry_strategy:
+                        max_retries: 5
+                        delay: 500
+                        multiplier: 2
+                        max_delay: 30000

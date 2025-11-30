@@ -55,3 +55,20 @@ services:
     App\Interface\Http\Controller\:
         resource: '../src/Interface/Http/Controller/'
         tags: ['controller.service_arguments']
+
+    App\Infrastructure\ExternalService\RestaurantServiceClientInterface:
+        alias: App\Infrastructure\ExternalService\StubRestaurantServiceClient
+
+    App\Infrastructure\ExternalService\PaymentServiceClientInterface:
+        alias: App\Infrastructure\ExternalService\StubPaymentServiceClient
+
+    App\Infrastructure\ExternalService\POSServiceClientInterface:
+        alias: App\Infrastructure\ExternalService\StubPOSServiceClient
+
+    App\Infrastructure\ExternalService\StubRestaurantServiceClient:
+        arguments:
+            $isAvailable: true
+
+    App\Infrastructure\Messaging\MessageHandler\:
+        resource: '../src/Infrastructure/Messaging/MessageHandler/'
+        tags: ['messenger.message_handler']
