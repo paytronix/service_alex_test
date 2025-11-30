@@ -1,0 +1,54 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Application Command Handlers
+    App\Application\Command\Handler\CreateOrderHandler:
+        arguments:
+            $orderRepository: '@App\Domain\Repository\OrderRepositoryInterface'
+            $validationService: '@App\Application\Service\OrderValidationServiceInterface'
+            $eventDispatcher: '@event_dispatcher'
+            $messageBus: '@messenger.bus.default'
+        tags:
+            - { name: messenger.message_handler, handles: App\Application\Command\CreateOrderCommand }
+
+    App\Application\Command\Handler\UpdateOrderStatusHandler:
+        arguments:
+            $orderRepository: '@App\Domain\Repository\OrderRepositoryInterface'
+            $validationService: '@App\Application\Service\OrderValidationServiceInterface'
+            $eventDispatcher: '@event_dispatcher'
+            $messageBus: '@messenger.bus.default'
+        tags:
+            - { name: messenger.message_handler, handles: App\Application\Command\UpdateOrderStatusCommand }
+
+    # Application Query Handlers
+    App\Application\Query\Handler\GetOrderHandler:
+        arguments:
+            $orderRepository: '@App\Domain\Repository\OrderRepositoryInterface'
+        tags:
+            - { name: messenger.message_handler, handles: App\Application\Query\GetOrderQuery }
+
+    # Application Services
+    App\Application\Service\OrderValidationServiceInterface:
+        alias: App\Application\Service\OrderValidationService
+
+    App\Application\Service\OrderValidationService:
+        arguments:
+            $menuServiceClient: '@App\Application\Service\MenuServiceClientInterface'
+
+    # Menu Service Client - stub implementation for now
+    App\Application\Service\MenuServiceClientInterface:
+        alias: App\Application\Service\StubMenuServiceClient
+
+    App\Application\Service\StubMenuServiceClient: ~
+
+    # Mapper
+    App\Application\Mapper\OrderMapper: ~
+
+    # Validators
+    App\Presentation\Validator\ValidOrderItemsValidator:
+        arguments:
+            $menuServiceClient: '@App\Application\Service\MenuServiceClientInterface'
+        tags:
+            - { name: validator.constraint_validator }
