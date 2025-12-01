@@ -43,6 +43,43 @@ framework:
                     multiplier: 2
                     max_delay: 30000
 
+            inbound_events:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: inbound_events
+                        type: topic
+                    queues:
+                        inbound_payment_events:
+                            binding_keys:
+                                - 'payment.#'
+                        inbound_pos_events:
+                            binding_keys:
+                                - 'pos.#'
+                        inbound_restaurant_events:
+                            binding_keys:
+                                - 'restaurant.#'
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 60000
+
+            retry:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: retry
+                        type: direct
+                    queues:
+                        retry:
+                            binding_keys: [retry]
+                retry_strategy:
+                    max_retries: 5
+                    delay: 5000
+                    multiplier: 3
+                    max_delay: 300000
+
             failed:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -52,6 +89,16 @@ framework:
                     queues:
                         failed:
                             binding_keys: [failed]
+
+            dlq:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: dlq
+                        type: direct
+                    queues:
+                        dead_letter_queue:
+                            binding_keys: [dlq]
 
         routing:
             App\Message\ExampleMessage: async
@@ -65,7 +112,10 @@ when@test:
             transports:
                 async: 'in-memory://'
                 async_priority_high: 'in-memory://'
+                inbound_events: 'in-memory://'
+                retry: 'in-memory://'
                 failed: 'in-memory://'
+                dlq: 'in-memory://'
 
 when@prod:
     framework:
@@ -102,3 +152,47 @@ when@prod:
                         delay: 500
                         multiplier: 2
                         max_delay: 30000
+                inbound_events:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: inbound_events
+                            type: topic
+                        queues:
+                            inbound_payment_events:
+                                binding_keys:
+                                    - 'payment.#'
+                            inbound_pos_events:
+                                binding_keys:
+                                    - 'pos.#'
+                            inbound_restaurant_events:
+                                binding_keys:
+                                    - 'restaurant.#'
+                    retry_strategy:
+                        max_retries: 5
+                        delay: 1000
+                        multiplier: 2
+                        max_delay: 60000
+                retry:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: retry
+                            type: direct
+                        queues:
+                            retry:
+                                binding_keys: [retry]
+                    retry_strategy:
+                        max_retries: 5
+                        delay: 5000
+                        multiplier: 3
+                        max_delay: 300000
+                dlq:
+                    dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                    options:
+                        exchange:
+                            name: dlq
+                            type: direct
+                        queues:
+                            dead_letter_queue:
+                                binding_keys: [dlq]

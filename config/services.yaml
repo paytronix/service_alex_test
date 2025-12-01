@@ -72,3 +72,43 @@ services:
     App\Infrastructure\Messaging\MessageHandler\:
         resource: '../src/Infrastructure/Messaging/MessageHandler/'
         tags: ['messenger.message_handler']
+
+    App\Infrastructure\Messaging\Consumer\:
+        resource: '../src/Infrastructure/Messaging/Consumer/'
+        tags: ['messenger.message_handler']
+
+    App\Infrastructure\Messaging\Service\MessageIdempotencyService:
+        arguments:
+            $cache: '@cache.app'
+            $ttlSeconds: 86400
+
+    App\Infrastructure\Messaging\Service\CircuitBreakerService:
+        arguments:
+            $cache: '@cache.app'
+            $failureThreshold: 5
+            $recoveryTimeSeconds: 30
+            $halfOpenMaxAttempts: 3
+
+    App\Infrastructure\Messaging\Service\RetryPolicyService:
+        arguments:
+            $maxRetries: 3
+            $baseDelayMs: 1000
+            $multiplier: 2.0
+            $maxDelayMs: 60000
+
+    App\Infrastructure\Messaging\Service\CorrelationIdService: ~
+
+    App\Infrastructure\ExternalService\HttpRestaurantServiceClient:
+        arguments:
+            $baseUrl: '%env(RESTAURANT_SERVICE_URL)%'
+            $timeout: 10
+
+    App\Infrastructure\ExternalService\HttpPaymentServiceClient:
+        arguments:
+            $baseUrl: '%env(PAYMENT_SERVICE_URL)%'
+            $timeout: 30
+
+    App\Infrastructure\ExternalService\HttpPOSServiceClient:
+        arguments:
+            $baseUrl: '%env(POS_SERVICE_URL)%'
+            $timeout: 15
