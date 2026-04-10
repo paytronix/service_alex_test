@@ -16,9 +16,13 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/orders/{orderId}/items')]
+#[IsGranted('IS_AUTHENTICATED_FULLY')]
 final class OrderItemController
 {
     public function __construct(
@@ -26,6 +30,7 @@ final class OrderItemController
         private readonly OrderRepositoryInterface $orderRepository,
         private readonly OrderMapper $orderMapper,
         private readonly ValidatorInterface $validator,
+        private readonly AuthorizationCheckerInterface $authorizationChecker,
     ) {
     }
 
@@ -42,6 +47,8 @@ final class OrderItemController
         }
 
         $order = $this->findOrderOrFail($orderId);
+
+        $this->denyAccessUnlessGranted('ORDER_EDIT', $order);
 
         $unitPrice = Money::create($dto->unitPrice, $order->totalAmount()->currency());
 
@@ -70,6 +77,13 @@ final class OrderItemController
         }
 
         return $order;
+    }
+
+    private function denyAccessUnlessGranted(string $attribute, mixed $subject): void
+    {
+        if (!$this->authorizationChecker->isGranted($attribute, $subject)) {
+            throw new AccessDeniedException('Access denied.');
+        }
     }
 
     private function formatValidationErrors(\Symfony\Component\Validator\ConstraintViolationListInterface $violations): array

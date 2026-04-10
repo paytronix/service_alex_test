@@ -17,6 +17,8 @@
         <field field-name="submittedAt" name="submitted_at" type="date_immutable" nullable="true"/>
         <field field-name="cancelledAt" name="cancelled_at" type="date_immutable" nullable="true"/>
 
+        <field field-name="userId" name="user_id" type="string" nullable="true"/>
+
         <field field-name="customer" name="customer" type="hash"/>
         <field field-name="items" name="items" type="collection"/>
 
@@ -32,6 +34,9 @@
             </index>
             <index>
                 <key name="updated_at" order="desc"/>
+            </index>
+            <index>
+                <key name="user_id" order="asc"/>
             </index>
         </indexes>
     </document>

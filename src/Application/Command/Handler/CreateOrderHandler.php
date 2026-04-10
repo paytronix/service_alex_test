@@ -45,7 +45,7 @@ final class CreateOrderHandler
             country: $command->customerCountry,
         );
 
-        $order = Order::create($customer, $command->currency, $command->notes);
+        $order = Order::create($customer, $command->currency, $command->notes, $command->userId);
 
         foreach ($command->items as $item) {
             $unitPrice = Money::create(

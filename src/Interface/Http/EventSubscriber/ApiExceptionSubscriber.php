@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 final class ApiExceptionSubscriber implements EventSubscriberInterface
 {
@@ -56,6 +58,28 @@ final class ApiExceptionSubscriber implements EventSubscriberInterface
 
     private function createJsonResponse(\Throwable $exception): JsonResponse
     {
+        if ($exception instanceof AccessDeniedException) {
+            $data = [
+                'type' => 'https://tools.ietf.org/html/rfc7231#section-6.5.3',
+                'title' => 'Forbidden',
+                'status' => 403,
+                'detail' => 'Access denied.',
+            ];
+
+            return new JsonResponse($data, 403, ['Content-Type' => 'application/problem+json']);
+        }
+
+        if ($exception instanceof AuthenticationException) {
+            $data = [
+                'type' => 'https://tools.ietf.org/html/rfc7235#section-3.1',
+                'title' => 'Unauthorized',
+                'status' => 401,
+                'detail' => 'Authentication required.',
+            ];
+
+            return new JsonResponse($data, 401, ['Content-Type' => 'application/problem+json']);
+        }
+
         if ($exception instanceof ApiProblemException) {
             return new JsonResponse(
                 $exception->toArray(),

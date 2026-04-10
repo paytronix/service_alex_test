@@ -81,8 +81,8 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appgroup /app /app
 
 # Create required directories
-RUN mkdir -p var/cache var/log && \
-    chown -R appuser:appgroup var
+RUN mkdir -p var/cache var/log config/jwt && \
+    chown -R appuser:appgroup var config/jwt
 
 # Copy PHP configuration
 COPY docker/php/php.ini /usr/local/etc/php/php.ini
@@ -91,6 +91,16 @@ COPY docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 # Health check script
 COPY docker/php/healthcheck.sh /usr/local/bin/healthcheck.sh
 RUN chmod +x /usr/local/bin/healthcheck.sh
+
+# Generate JWT keys if not present
+ARG JWT_PASSPHRASE
+RUN if [ ! -f config/jwt/private.pem ]; then \
+        openssl genpkey -out config/jwt/private.pem -aes256 -algorithm rsa -pkeyopt rsa_keygen_bits:4096 -pass pass:${JWT_PASSPHRASE} && \
+        openssl pkey -in config/jwt/private.pem -out config/jwt/public.pem -pubout -passin pass:${JWT_PASSPHRASE} && \
+        chown appuser:appgroup config/jwt/*.pem && \
+        chmod 600 config/jwt/private.pem && \
+        chmod 644 config/jwt/public.pem; \
+    fi
 
 # Switch to non-root user
 USER appuser

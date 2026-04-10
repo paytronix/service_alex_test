@@ -27,6 +27,7 @@ class OrderDocument
     private DateTimeImmutable $updatedAt;
     private ?DateTimeImmutable $submittedAt;
     private ?DateTimeImmutable $cancelledAt;
+    private ?string $userId = null;
 
     public function getId(): string
     {
@@ -148,6 +149,16 @@ class OrderDocument
         $this->cancelledAt = $cancelledAt;
     }
 
+    public function getUserId(): ?string
+    {
+        return $this->userId;
+    }
+
+    public function setUserId(?string $userId): void
+    {
+        $this->userId = $userId;
+    }
+
     public static function fromDomainEntity(Order $order): self
     {
         $document = new self();
@@ -163,6 +174,7 @@ class OrderDocument
         $document->setUpdatedAt($order->updatedAt()->value());
         $document->setSubmittedAt($order->submittedAt()?->value());
         $document->setCancelledAt($order->cancelledAt()?->value());
+        $document->setUserId($order->userId());
 
         return $document;
     }
@@ -183,7 +195,8 @@ class OrderDocument
             Timestamp::fromDateTime($this->createdAt),
             Timestamp::fromDateTime($this->updatedAt),
             $this->submittedAt ? Timestamp::fromDateTime($this->submittedAt) : null,
-            $this->cancelledAt ? Timestamp::fromDateTime($this->cancelledAt) : null
+            $this->cancelledAt ? Timestamp::fromDateTime($this->cancelledAt) : null,
+            $this->userId
         );
     }
 

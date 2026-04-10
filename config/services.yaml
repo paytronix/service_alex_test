@@ -37,6 +37,23 @@ services:
     App\Domain\Repository\OrderRepositoryInterface:
         alias: App\Infrastructure\Persistence\MongoDB\Repository\OrderRepository
 
+    App\Domain\Repository\UserRepositoryInterface:
+        alias: App\Infrastructure\Persistence\MongoDB\Repository\UserRepository
+
+    App\Infrastructure\Persistence\MongoDB\Repository\UserRepository:
+        arguments:
+            $documentManager: '@doctrine_mongodb.odm.document_manager'
+
+    App\Infrastructure\Security\MongoDBUserProvider:
+        arguments:
+            $userRepository: '@App\Domain\Repository\UserRepositoryInterface'
+
+    App\Infrastructure\Security\Voter\OrderVoter:
+        tags: ['security.voter']
+
+    App\Infrastructure\Security\Voter\UserVoter:
+        tags: ['security.voter']
+
     App\Domain\Repository\OrderItemRepositoryInterface:
         alias: App\Infrastructure\Persistence\MongoDB\Repository\OrderItemRepository
 
