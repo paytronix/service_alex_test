@@ -54,6 +54,11 @@ services:
     App\Infrastructure\Security\Voter\UserVoter:
         tags: ['security.voter']
 
+    App\Application\Command\Handler\RegisterUserHandler:
+        arguments:
+            $userRepository: '@App\Domain\Repository\UserRepositoryInterface'
+            $passwordHasher: '@Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface'
+
     App\Domain\Repository\OrderItemRepositoryInterface:
         alias: App\Infrastructure\Persistence\MongoDB\Repository\OrderItemRepository
 
