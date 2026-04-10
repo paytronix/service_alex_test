@@ -15,13 +15,18 @@ use App\Interface\Http\Dto\CancelOrderRequest;
 use App\Interface\Http\Dto\CreateOrderRequest;
 use App\Interface\Http\Exception\ApiProblemException;
 use App\Interface\Http\Mapper\OrderMapper;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/orders')]
+#[IsGranted('IS_AUTHENTICATED_FULLY')]
 final class OrderController
 {
     public function __construct(
@@ -30,6 +35,8 @@ final class OrderController
         private readonly OrderRepositoryInterface $orderRepository,
         private readonly OrderMapper $orderMapper,
         private readonly ValidatorInterface $validator,
+        private readonly Security $security,
+        private readonly AuthorizationCheckerInterface $authorizationChecker,
     ) {
     }
 
@@ -44,6 +51,9 @@ final class OrderController
             $errors = $this->formatValidationErrors($violations);
             throw ApiProblemException::validationFailed($errors);
         }
+
+        $user = $this->security->getUser();
+        $userId = $user?->getUserIdentifier();
 
         $command = new CreateOrderCommand(
             customerEmail: $dto->customerEmail,
@@ -60,6 +70,7 @@ final class OrderController
             currency: $dto->currency,
             notes: $dto->notes,
             items: $dto->items,
+            userId: $userId,
         );
 
         $orderId = ($this->createOrderHandler)($command);
@@ -83,6 +94,8 @@ final class OrderController
             throw ApiProblemException::notFound('Order', $id);
         }
 
+        $this->denyAccessUnlessGranted('ORDER_VIEW', $order);
+
         $response = $this->orderMapper->toOrderResponse($order);
 
         return new JsonResponse($response->toArray(), Response::HTTP_OK);
@@ -92,6 +105,8 @@ final class OrderController
     public function submit(string $id): JsonResponse
     {
         $order = $this->findOrderOrFail($id);
+
+        $this->denyAccessUnlessGranted('ORDER_SUBMIT', $order);
 
         $order->submit();
         $this->orderRepository->save($order);
@@ -115,6 +130,8 @@ final class OrderController
 
         $order = $this->findOrderOrFail($id);
 
+        $this->denyAccessUnlessGranted('ORDER_CANCEL', $order);
+
         $order->cancel($dto->reason);
         $this->orderRepository->save($order);
 
@@ -132,6 +149,13 @@ final class OrderController
         }
 
         return $order;
+    }
+
+    private function denyAccessUnlessGranted(string $attribute, mixed $subject): void
+    {
+        if (!$this->authorizationChecker->isGranted($attribute, $subject)) {
+            throw new AccessDeniedException('Access denied.');
+        }
     }
 
     private function formatValidationErrors(\Symfony\Component\Validator\ConstraintViolationListInterface $violations): array

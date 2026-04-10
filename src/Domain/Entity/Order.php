@@ -29,6 +29,7 @@ class Order
     private Timestamp $updatedAt;
     private ?Timestamp $submittedAt;
     private ?Timestamp $cancelledAt;
+    private ?string $userId;
     private array $domainEvents;
 
     private function __construct(
@@ -42,7 +43,8 @@ class Order
         Timestamp $createdAt,
         Timestamp $updatedAt,
         ?Timestamp $submittedAt,
-        ?Timestamp $cancelledAt
+        ?Timestamp $cancelledAt,
+        ?string $userId = null
     ) {
         $this->id = $id;
         $this->customer = $customer;
@@ -55,10 +57,11 @@ class Order
         $this->updatedAt = $updatedAt;
         $this->submittedAt = $submittedAt;
         $this->cancelledAt = $cancelledAt;
+        $this->userId = $userId;
         $this->domainEvents = [];
     }
 
-    public static function create(OrderCustomer $customer, string $currency = 'USD', ?string $notes = null): self
+    public static function create(OrderCustomer $customer, string $currency = 'USD', ?string $notes = null, ?string $userId = null): self
     {
         $now = Timestamp::now();
         $orderId = OrderId::generate();
@@ -74,7 +77,8 @@ class Order
             $now,
             $now,
             null,
-            null
+            null,
+            $userId
         );
 
         $order->recordEvent(new OrderCreatedEvent($orderId, $customer->email(), $now));
@@ -93,7 +97,8 @@ class Order
         Timestamp $createdAt,
         Timestamp $updatedAt,
         ?Timestamp $submittedAt,
-        ?Timestamp $cancelledAt
+        ?Timestamp $cancelledAt,
+        ?string $userId = null
     ): self {
         return new self(
             $id,
@@ -106,7 +111,8 @@ class Order
             $createdAt,
             $updatedAt,
             $submittedAt,
-            $cancelledAt
+            $cancelledAt,
+            $userId
         );
     }
 
@@ -163,6 +169,16 @@ class Order
     public function cancelledAt(): ?Timestamp
     {
         return $this->cancelledAt;
+    }
+
+    public function userId(): ?string
+    {
+        return $this->userId;
+    }
+
+    public function ownedBy(string $userId): bool
+    {
+        return $this->userId !== null && $this->userId === $userId;
     }
 
     public function itemCount(): int
@@ -494,6 +510,7 @@ class Order
             'updated_at' => $this->updatedAt->format(),
             'submitted_at' => $this->submittedAt?->format(),
             'cancelled_at' => $this->cancelledAt?->format(),
+            'user_id' => $this->userId,
         ];
     }
 }

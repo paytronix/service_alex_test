@@ -74,6 +74,18 @@ class OrderRepository implements OrderRepositoryInterface
         );
     }
 
+    public function findByUserId(string $userId): array
+    {
+        $documents = $this->documentManager
+            ->getRepository(OrderDocument::class)
+            ->findBy(['userId' => $userId]);
+
+        return array_map(
+            fn(OrderDocument $document) => $document->toDomainEntity(),
+            $documents
+        );
+    }
+
     public function findByStatus(OrderStatus $status): array
     {
         $documents = $this->documentManager

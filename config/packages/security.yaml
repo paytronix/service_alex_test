@@ -7,12 +7,8 @@ security:
         ROLE_SUPER_ADMIN: [ROLE_ADMIN, ROLE_ALLOWED_TO_SWITCH]
 
     providers:
-        users_in_memory:
-            memory:
-                users:
-                    admin:
-                        password: '$2y$13$hK1sDfPvkGJGJzPjMvLyOeYvHYsWlMj.1sBkLCkFqGXGqLjjQW2Aq'
-                        roles: ['ROLE_ADMIN']
+        app_user_provider:
+            id: App\Infrastructure\Security\MongoDBUserProvider
 
     firewalls:
         dev:
@@ -22,6 +18,7 @@ security:
         login:
             pattern: ^/api/login
             stateless: true
+            provider: app_user_provider
             json_login:
                 check_path: /api/login_check
                 success_handler: lexik_jwt_authentication.handler.authentication_success
@@ -30,17 +27,26 @@ security:
         api:
             pattern: ^/api
             stateless: true
+            provider: app_user_provider
+            jwt: ~
+
+        orders:
+            pattern: ^/orders
+            stateless: true
+            provider: app_user_provider
             jwt: ~
 
         main:
             lazy: true
-            provider: users_in_memory
+            provider: app_user_provider
 
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
         - { path: ^/api/docs, roles: PUBLIC_ACCESS }
         - { path: ^/api$, roles: PUBLIC_ACCESS }
         - { path: ^/health, roles: PUBLIC_ACCESS }
+        - { path: ^/orders, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/admin, roles: ROLE_ADMIN }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 

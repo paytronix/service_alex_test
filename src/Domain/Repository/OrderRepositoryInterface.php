@@ -18,6 +18,8 @@ interface OrderRepositoryInterface
 
     public function findByCustomerEmail(string $email): array;
 
+    public function findByUserId(string $userId): array;
+
     public function findByStatus(OrderStatus $status): array;
 
     public function findAll(int $limit = 100, int $offset = 0): array;

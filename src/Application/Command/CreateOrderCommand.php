@@ -21,6 +21,7 @@ final readonly class CreateOrderCommand
         public string $currency = 'USD',
         public ?string $notes = null,
         public array $items = [],
+        public ?string $userId = null,
     ) {
     }
 }
