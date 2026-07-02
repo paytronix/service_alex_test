@@ -1,0 +1,31 @@
+{
+  "name": "shiftflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ShiftFlow — employee shift scheduling platform",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:generate": "pnpm --filter @shiftflow/api exec prisma generate",
+    "db:migrate": "pnpm --filter @shiftflow/api exec prisma migrate dev",
+    "db:push": "pnpm --filter @shiftflow/api exec prisma db push"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0",
+    "prettier": "^3.2.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.1.1"
+    }
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
