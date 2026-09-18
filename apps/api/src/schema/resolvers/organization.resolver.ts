@@ -67,12 +67,56 @@ builder.queryField("auditLogs", (t) =>
     authScopes: { authenticated: true },
     args: {
       organizationId: t.arg.string({ required: true }),
+      actorId: t.arg.string({ required: false }),
+      action: t.arg.string({ required: false }),
+      entity: t.arg.string({ required: false }),
+      entityId: t.arg.string({ required: false }),
+      from: t.arg({ type: "DateTime", required: false }),
+      to: t.arg({ type: "DateTime", required: false }),
+      skip: t.arg.int({ required: false }),
+      take: t.arg.int({ required: false }),
       limit: t.arg.int({ required: false }),
     },
     resolve: async (_root, args, ctx) => {
       if (!ctx.user) throw new Error("Not authenticated");
       await requireRole(MembershipRole.OWNER, MembershipRole.MANAGER)(ctx, args.organizationId);
-      return auditService.getByOrganization(args.organizationId, args.limit ?? 50);
+      return auditService.list(args.organizationId, {
+        actorId: args.actorId,
+        action: args.action,
+        entity: args.entity,
+        entityId: args.entityId,
+        from: args.from,
+        to: args.to,
+        skip: args.skip,
+        take: args.take ?? args.limit,
+      });
+    },
+  }),
+);
+
+builder.queryField("auditLogsCount", (t) =>
+  t.int({
+    authScopes: { authenticated: true },
+    args: {
+      organizationId: t.arg.string({ required: true }),
+      actorId: t.arg.string({ required: false }),
+      action: t.arg.string({ required: false }),
+      entity: t.arg.string({ required: false }),
+      entityId: t.arg.string({ required: false }),
+      from: t.arg({ type: "DateTime", required: false }),
+      to: t.arg({ type: "DateTime", required: false }),
+    },
+    resolve: async (_root, args, ctx) => {
+      if (!ctx.user) throw new Error("Not authenticated");
+      await requireRole(MembershipRole.OWNER, MembershipRole.MANAGER)(ctx, args.organizationId);
+      return auditService.count(args.organizationId, {
+        actorId: args.actorId,
+        action: args.action,
+        entity: args.entity,
+        entityId: args.entityId,
+        from: args.from,
+        to: args.to,
+      });
     },
   }),
 );

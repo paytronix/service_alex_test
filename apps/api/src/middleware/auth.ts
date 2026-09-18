@@ -28,8 +28,18 @@ export function extractUser(req: Request): AuthContext | null {
   }
 }
 
-export function createContext(req: Request): GraphQLContext {
-  const user = extractUser(req);
+export function extractUserFromToken(token: string | undefined): AuthContext | null {
+  if (!token) return null;
+  const raw = token.startsWith("Bearer ") ? token.slice(7) : token;
+  try {
+    const payload = verifyAccessToken(raw);
+    return { userId: payload.userId, email: payload.email };
+  } catch {
+    return null;
+  }
+}
+
+export function createContextForUser(user: AuthContext | null): GraphQLContext {
   return {
     user,
     prisma,
@@ -42,6 +52,10 @@ export function createContext(req: Request): GraphQLContext {
       });
     },
   };
+}
+
+export function createContext(req: Request): GraphQLContext {
+  return createContextForUser(extractUser(req));
 }
 
 /** Any authenticated member of the organization. */

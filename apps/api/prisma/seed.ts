@@ -4,7 +4,11 @@ import {
   LeaveStatus,
   LeaveType,
   MembershipRole,
+  NotificationChannel,
+  NotificationStatus,
+  NotificationType,
   PrismaClient,
+  ScheduleChangeType,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -311,6 +315,75 @@ async function main() {
         endDate: new Date("2026-07-10"),
         reason: "Summer holiday",
         status: LeaveStatus.PENDING,
+      },
+    });
+  }
+
+  const ownerUser = users[0];
+
+  const existingNotification = await prisma.notification.findFirst({
+    where: { organizationId: organization.id, recipientId: employeeUser.id },
+  });
+  if (!existingNotification) {
+    await prisma.notification.createMany({
+      data: [
+        {
+          organizationId: organization.id,
+          recipientId: employeeUser.id,
+          type: NotificationType.SCHEDULE_PUBLISHED,
+          channel: NotificationChannel.IN_APP,
+          status: NotificationStatus.SENT,
+          title: "Schedule published",
+          body: "The schedule for the current week has been published.",
+          payload: { scheduleId: schedule.id, version: schedule.version },
+          sentAt: new Date(),
+        },
+        {
+          organizationId: organization.id,
+          recipientId: employeeUser.id,
+          type: NotificationType.SHIFT_ASSIGNED,
+          channel: NotificationChannel.IN_APP,
+          status: NotificationStatus.SENT,
+          title: "New shift assigned",
+          body: "You are scheduled for the morning shift.",
+          sentAt: new Date(),
+        },
+      ],
+    });
+  }
+
+  const existingHistory = await prisma.shiftAssignmentHistory.findFirst({
+    where: { scheduleId: schedule.id },
+  });
+  const firstAssignment = await prisma.shiftAssignment.findFirst({
+    where: { scheduleId: schedule.id },
+  });
+  if (!existingHistory && firstAssignment) {
+    await prisma.shiftAssignmentHistory.create({
+      data: {
+        organizationId: organization.id,
+        scheduleId: schedule.id,
+        assignmentId: firstAssignment.id,
+        changeType: ScheduleChangeType.CREATED,
+        date: firstAssignment.date,
+        newEmployeeId: firstAssignment.employeeId,
+        changedById: ownerUser.id,
+      },
+    });
+  }
+
+  const existingAudit = await prisma.auditLog.findFirst({
+    where: { organizationId: organization.id, action: "SCHEDULE_PUBLISHED" },
+  });
+  if (!existingAudit) {
+    await prisma.auditLog.create({
+      data: {
+        organizationId: organization.id,
+        userId: ownerUser.id,
+        action: "SCHEDULE_PUBLISHED",
+        entity: "Schedule",
+        entityId: schedule.id,
+        meta: { version: schedule.version },
       },
     });
   }

@@ -1,11 +1,14 @@
-import { ScheduleStatus } from "@prisma/client";
+import { ScheduleChangeType, ScheduleStatus } from "@prisma/client";
 import {
   CandidateAssignment,
+  ScheduleChangeType as SharedScheduleChangeType,
   toDateOnly,
   Violation,
 } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
+import { eventBus } from "../events";
 import { AuditService } from "./audit.service";
+import { ScheduleHistoryService } from "./schedule-history.service";
 import { ScheduleValidationService } from "./schedule-validation.service";
 
 export interface ShiftInput {
@@ -38,6 +41,13 @@ export interface ShiftMutationResult {
 
 const auditService = new AuditService();
 const validationService = new ScheduleValidationService();
+const historyService = new ScheduleHistoryService();
+
+function changeTypeFor(previousEmployeeId: string, newEmployeeId: string): ScheduleChangeType {
+  return previousEmployeeId === newEmployeeId
+    ? ScheduleChangeType.MOVED
+    : ScheduleChangeType.REPLACED;
+}
 
 export class ShiftAssignmentService {
   async getById(organizationId: string, id: string) {
@@ -82,6 +92,30 @@ export class ShiftAssignmentService {
       entity: "ShiftAssignment",
       entityId: assignment.id,
       meta: { employeeId: assignment.employeeId, date: toDateOnly(assignment.date) },
+    });
+    await historyService.record({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: assignment.id,
+      changeType: ScheduleChangeType.CREATED,
+      date: assignment.date,
+      newEmployeeId: assignment.employeeId,
+      changedById: userId,
+    });
+    eventBus.emit("shift.assigned", {
+      organizationId,
+      actorId: userId,
+      scheduleId: assignment.scheduleId,
+      scheduleName: toDateOnly(references.schedule.weekStartDate),
+      scheduleStatus: references.schedule.status,
+      scheduleVersion: references.schedule.version,
+      assignmentId: assignment.id,
+      date: toDateOnly(assignment.date),
+      startTime: assignment.startTime ?? values.startTime,
+      endTime: assignment.endTime ?? values.endTime,
+      changeType: SharedScheduleChangeType.CREATED,
+      employeeId: assignment.employeeId,
+      previousEmployeeId: null,
     });
     return { assignment: await this.getById(organizationId, assignment.id), violations: validation.violations };
   }
@@ -149,6 +183,30 @@ export class ShiftAssignmentService {
       entityId: id,
       meta: { employeeId: assignment.employeeId, date: toDateOnly(assignment.date) },
     });
+    await historyService.record({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: id,
+      changeType: ScheduleChangeType.REMOVED,
+      date: assignment.date,
+      previousEmployeeId: assignment.employeeId,
+      changedById: userId,
+    });
+    eventBus.emit("shift.changed", {
+      organizationId,
+      actorId: userId,
+      scheduleId: assignment.scheduleId,
+      scheduleName: toDateOnly(schedule.weekStartDate),
+      scheduleStatus: schedule.status,
+      scheduleVersion: schedule.version,
+      assignmentId: id,
+      date: toDateOnly(assignment.date),
+      startTime: assignment.startTime ?? assignment.shiftTemplate.startTime,
+      endTime: assignment.endTime ?? assignment.shiftTemplate.endTime,
+      changeType: SharedScheduleChangeType.REMOVED,
+      employeeId: null,
+      previousEmployeeId: assignment.employeeId,
+    });
     return true;
   }
 
@@ -192,6 +250,36 @@ export class ShiftAssignmentService {
       entity: "ShiftAssignment",
       entityId: id,
       meta: { employeeId: assignment.employeeId, date: toDateOnly(assignment.date) },
+    });
+    const changeType = changeTypeFor(existing.employeeId, assignment.employeeId);
+    await historyService.record({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: id,
+      changeType,
+      date: assignment.date,
+      previousEmployeeId: existing.employeeId,
+      newEmployeeId: assignment.employeeId,
+      changedById: userId,
+      metadata: {
+        previousDate: toDateOnly(existing.date),
+        newDate: toDateOnly(assignment.date),
+      },
+    });
+    eventBus.emit("shift.changed", {
+      organizationId,
+      actorId: userId,
+      scheduleId: assignment.scheduleId,
+      scheduleName: toDateOnly(schedule.weekStartDate),
+      scheduleStatus: schedule.status,
+      scheduleVersion: schedule.version,
+      assignmentId: id,
+      date: toDateOnly(assignment.date),
+      startTime: assignment.startTime ?? values.startTime,
+      endTime: assignment.endTime ?? values.endTime,
+      changeType: changeType as SharedScheduleChangeType,
+      employeeId: assignment.employeeId,
+      previousEmployeeId: existing.employeeId,
     });
     return { assignment: await this.getById(organizationId, id), violations: validation.violations };
   }
@@ -288,6 +376,7 @@ export class ShiftAssignmentService {
   }
 
   private assertNoErrors(violations: Violation[]): void {
+
     const errors = violations.filter((violation) => violation.level === "ERROR");
     if (errors.length > 0) {
       throw new Error(`Assignment blocked: ${errors.map((violation) => violation.message).join("; ")}`);

@@ -27,8 +27,11 @@ import {
   REMOVE_SHIFT_MUTATION,
   REOPEN_SCHEDULE_MUTATION,
   ROLES_QUERY,
+  SCHEDULE_CHANGE_HISTORY_QUERY,
   SCHEDULE_COVERAGE_QUERY,
   SCHEDULE_QUERY,
+  SCHEDULE_VERSIONS_QUERY,
+  SCHEDULE_VERSION_DIFF_QUERY,
   SHIFT_TEMPLATES_QUERY,
   VALIDATE_ASSIGNMENT_QUERY,
 } from "../lib/graphql";
@@ -38,6 +41,15 @@ import { EmployeeView } from "../components/scheduler/EmployeeView";
 import { RoleView } from "../components/scheduler/RoleView";
 import { WeekGridView } from "../components/scheduler/WeekGridView";
 import { canAssignShifts, canManageSchedule } from "../components/scheduler/permissions";
+import {
+  ScheduleHistoryPanel,
+  type ScheduleDiffEntry,
+} from "../components/scheduler/ScheduleHistoryPanel";
+import { canViewScheduleHistory } from "../components/notifications/permissions";
+import type {
+  ScheduleChangeItem,
+  ScheduleVersionItem,
+} from "../components/notifications/types";
 import { resolveDragAction } from "../components/scheduler/dragActions";
 import type {
   ActiveDrag,
@@ -191,6 +203,26 @@ export function SchedulerPage() {
   const shiftTemplates = templatesQuery.data?.shiftTemplates ?? [];
   const assignments = schedule?.assignments ?? [];
   const coverage = coverageQuery.data?.scheduleCoverage ?? [];
+  const canSeeHistory = canViewScheduleHistory(organization?.role);
+  const historyVariables = { organizationId, scheduleId: schedule?.id ?? "" };
+  const historySkip = !organizationId || !schedule?.id || !canSeeHistory;
+  const historyQuery = useApolloQuery<{ scheduleChangeHistory: ScheduleChangeItem[] }>(
+    SCHEDULE_CHANGE_HISTORY_QUERY,
+    { variables: { ...historyVariables, skip: 0, take: 50 }, skip: historySkip },
+  );
+  const versionsQuery = useApolloQuery<{ scheduleVersions: ScheduleVersionItem[] }>(
+    SCHEDULE_VERSIONS_QUERY,
+    { variables: historyVariables, skip: historySkip },
+  );
+  const [loadDiff, diffQuery] = useApolloLazyQuery<{
+    scheduleVersionDiff: ScheduleDiffEntry[];
+  }>(SCHEDULE_VERSION_DIFF_QUERY, { fetchPolicy: "network-only" });
+  const employeeNames = Object.fromEntries(
+    employees.map((employee) => [
+      employee.id,
+      `${employee.firstName} ${employee.lastName}`.trim(),
+    ]),
+  );
   const refetchQueries = [
     { query: SCHEDULE_QUERY, variables },
     ...(schedule?.id
@@ -467,6 +499,25 @@ export function SchedulerPage() {
             {view === "roles" && <RoleView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {canEdit && <EmployeePalette employees={employees} canEdit={canEdit} />}
           </DndContext>
+          {canSeeHistory && schedule && (
+            <div className="mt-6">
+              <ScheduleHistoryPanel
+                changes={historyQuery.data?.scheduleChangeHistory ?? []}
+                versions={versionsQuery.data?.scheduleVersions ?? []}
+                employeeNames={employeeNames}
+                loading={historyQuery.loading || versionsQuery.loading}
+                error={
+                  historyQuery.error?.message ?? versionsQuery.error?.message ?? null
+                }
+                diff={diffQuery.data?.scheduleVersionDiff ?? null}
+                onCompareVersions={(versionA, versionB) =>
+                  void loadDiff({
+                    variables: { ...historyVariables, versionA, versionB },
+                  })
+                }
+              />
+            </div>
+          )}
         </>
       )}
     </main>

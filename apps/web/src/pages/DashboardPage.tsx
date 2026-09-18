@@ -8,6 +8,8 @@ import {
   INVITE_MUTATION,
   ORGANIZATION_MEMBERS_QUERY,
 } from "../lib/graphql";
+import { NotificationBellContainer } from "../components/notifications/NotificationBellContainer";
+import { canViewAuditLog } from "../components/notifications/permissions";
 
 interface Organization {
   id: string;
@@ -83,6 +85,9 @@ export function DashboardPage() {
 
   const orgs: Organization[] = data?.myOrganizations ?? [];
   const members: Member[] = membersData?.organizationMembers ?? [];
+  const activeOrg = orgs.find((org) => org.id === selectedOrg) ?? orgs[0];
+  const activeOrgId = activeOrg?.id ?? null;
+  const currentRole = activeOrg?.role;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -99,6 +104,15 @@ export function DashboardPage() {
             <Link to="/settings/catalogs" className="text-sm text-primary-600 hover:underline">
               Catalogs
             </Link>
+            <Link to="/notifications" className="text-sm text-primary-600 hover:underline">
+              Notifications
+            </Link>
+            {canViewAuditLog(currentRole) && (
+              <Link to="/audit-log" className="text-sm text-primary-600 hover:underline">
+                Audit Log
+              </Link>
+            )}
+            <NotificationBellContainer organizationId={activeOrgId} />
             <span className="text-sm text-gray-600">
               {user?.firstName} {user?.lastName}
             </span>

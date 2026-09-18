@@ -8,6 +8,25 @@ export {
   ScheduleStatus,
 } from "./enums";
 export type { BusinessRules } from "./types";
+export {
+  NotificationType,
+  NotificationChannel,
+  NotificationStatus,
+  ScheduleChangeType,
+  AuditAction,
+  NOTIFICATION_TYPE_LABELS,
+  DomainEventName,
+} from "./notifications";
+export type {
+  NotificationDto,
+  AuditLogDto,
+  ScheduleVersionDto,
+  ShiftAssignmentHistoryDto,
+  ShiftEventPayload,
+  LeaveRequestEventPayload,
+  SchedulePublishedEventPayload,
+  DomainEventPayloads,
+} from "./notifications";
 export { BUSINESS_RULES } from "./constants";
 export { CatalogEntity } from "./catalog";
 export type { DepartmentDto, RoleDto, SkillDto, ShiftTemplateDto } from "./catalog";

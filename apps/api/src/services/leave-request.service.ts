@@ -1,6 +1,7 @@
 import { EmployeeStatus, LeaveStatus, LeaveType, Prisma } from "@prisma/client";
-import { datesOverlap } from "@shiftflow/shared";
+import { datesOverlap, toDateOnly } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
+import { eventBus } from "../events";
 import { assertDateRange } from "../utils/employee";
 import { AuditService } from "./audit.service";
 
@@ -86,6 +87,8 @@ export class LeaveRequestService {
       meta: { employeeId: leaveRequest.employeeId },
     });
 
+    eventBus.emit("leaveRequest.approved", leaveEventPayload(organizationId, userId, leaveRequest));
+
     return leaveRequest;
   }
 
@@ -105,6 +108,8 @@ export class LeaveRequestService {
       entityId: id,
       meta: { employeeId: leaveRequest.employeeId },
     });
+
+    eventBus.emit("leaveRequest.rejected", leaveEventPayload(organizationId, userId, leaveRequest));
 
     return leaveRequest;
   }
@@ -154,6 +159,22 @@ export class LeaveRequestService {
       throw new Error("Leave request overlaps an existing request for this employee");
     }
   }
+}
+
+function leaveEventPayload(
+  organizationId: string,
+  actorId: string,
+  leaveRequest: { id: string; employeeId: string; type: LeaveType; startDate: Date; endDate: Date },
+) {
+  return {
+    organizationId,
+    actorId,
+    leaveRequestId: leaveRequest.id,
+    employeeId: leaveRequest.employeeId,
+    leaveType: leaveRequest.type,
+    startDate: toDateOnly(leaveRequest.startDate),
+    endDate: toDateOnly(leaveRequest.endDate),
+  };
 }
 
 function employeeStatusForLeave(type: LeaveType): EmployeeStatus | null {

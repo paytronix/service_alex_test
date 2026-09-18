@@ -1,6 +1,7 @@
 import { ScheduleStatus } from "@prisma/client";
-import { startOfWeek, toDateOnly } from "@shiftflow/shared";
+import { addDays, startOfWeek, toDateOnly } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
+import { eventBus } from "../events";
 import { AuditService } from "./audit.service";
 import { ScheduleValidationService } from "./schedule-validation.service";
 
@@ -129,6 +130,16 @@ export class ScheduleService {
       entity: "Schedule",
       entityId: id,
       meta: { version: nextVersion, assignmentCount: snapshot.length },
+    });
+    eventBus.emit("schedule.published", {
+      organizationId,
+      actorId: userId,
+      scheduleId: id,
+      scheduleName: toDateOnly(schedule.weekStartDate),
+      version: nextVersion,
+      startDate: toDateOnly(schedule.weekStartDate),
+      endDate: toDateOnly(addDays(schedule.weekStartDate, 6)),
+      employeeIds: [...new Set(snapshot.map((assignment) => assignment.employeeId))],
     });
     return result;
   }

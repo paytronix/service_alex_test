@@ -1,17 +1,7 @@
 import { builder } from "../builder";
-import { PubSub } from "graphql-subscriptions";
+import { pubsub, SCHEDULE_UPDATED, toAsyncIterable } from "../../utils/pubsub";
 
-export const pubsub = new PubSub();
-
-export const SCHEDULE_UPDATED = "SCHEDULE_UPDATED";
-
-function toAsyncIterable<T>(asyncIterator: AsyncIterator<T>): AsyncIterable<T> {
-  return {
-    [Symbol.asyncIterator]() {
-      return asyncIterator;
-    },
-  };
-}
+export { pubsub, SCHEDULE_UPDATED };
 
 builder.subscriptionField("scheduleUpdated", (t) =>
   t.string({
