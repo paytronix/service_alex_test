@@ -82,3 +82,22 @@ export {
   isValidDateRange,
   datesOverlap,
 } from "./validation";
+export {
+  ReportType,
+  ExportFormat,
+  ReportGranularity,
+  periodKey,
+  fillRatePercent,
+  roundHours,
+} from "./reports";
+export type {
+  ReportPeriodDto,
+  WorkHoursRowDto,
+  WorkHoursReportDto,
+  EmployeeWorkloadRowDto,
+  EmployeeWorkloadReportDto,
+  FillRateBucketDto,
+  ScheduleFillRateReportDto,
+  DashboardRecentChangeDto,
+  DashboardSummaryDto,
+} from "./reports";

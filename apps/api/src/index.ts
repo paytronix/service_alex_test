@@ -15,6 +15,7 @@ import {
   GraphQLContext,
 } from "./middleware/auth";
 import "./events";
+import { createReportsRouter } from "./routes/reports";
 
 async function main() {
   const app = express();
@@ -56,6 +57,11 @@ async function main() {
   });
 
   await apolloServer.start();
+
+  app.use(
+    "/api/reports",
+    createReportsRouter(),
+  );
 
   app.use(
     "/graphql",

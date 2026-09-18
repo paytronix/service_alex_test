@@ -206,6 +206,18 @@ Notifications are private to their recipient; `auditLogs` requires `Owner`/`Mana
 history additionally allows `Supervisor`. Shift events are not announced for draft schedules, and
 the user who performed the action is never notified about it.
 
+## Features (Epic 8 — Reports and analytics)
+
+- [x] Work-hours, employee-workload and schedule-fill-rate analytics with organization-scoped
+  PostgreSQL aggregation
+- [x] CSV, Excel and PDF exports at `GET /api/reports/export` and through the `exportReport` query
+- [x] Dashboard summary with attendance, open requests, fill rate and recent schedule changes
+
+Report RBAC is intentionally separate from schedule-management permissions: Owners and Managers
+may read every report and export; Supervisors may read all reports but cannot export; Employees
+may read only their own work-hours report and cannot read workload, fill-rate, dashboard or export
+data. Every report query and export also requires membership in the requested organization.
+
 ### Environment variables (Epic 7)
 
 | Variable | Scope | Purpose |
