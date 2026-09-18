@@ -1706,3 +1706,810 @@ export const SCHEDULE_UPDATED_SUBSCRIPTION = gql`
     }
   }
 `;
+
+// ─── Epic 10: time tracking ──────────────────────────────────
+
+const TIME_ENTRY_FIELDS = `
+  id
+  employeeId
+  shiftAssignmentId
+  clockInAt
+  clockOutAt
+  source
+  status
+  note
+  approvedById
+  approvedAt
+  minutesWorked
+`;
+
+export const TIME_ENTRIES_QUERY = gql`
+  query TimeEntries(
+    $organizationId: String!
+    $employeeId: String
+    $from: String
+    $to: String
+    $status: TimeEntryStatus
+  ) {
+    timeEntries(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      from: $from
+      to: $to
+      status: $status
+    ) {
+      ${TIME_ENTRY_FIELDS}
+      employee {
+        id
+        fullName
+      }
+    }
+  }
+`;
+
+export const OPEN_TIME_ENTRY_QUERY = gql`
+  query OpenTimeEntry($organizationId: String!, $employeeId: String) {
+    openTimeEntry(organizationId: $organizationId, employeeId: $employeeId) {
+      ${TIME_ENTRY_FIELDS}
+    }
+  }
+`;
+
+export const TIMESHEET_QUERY = gql`
+  query Timesheet(
+    $organizationId: String!
+    $from: String!
+    $to: String!
+    $employeeId: String
+    $departmentId: String
+    $locationId: String
+  ) {
+    timesheet(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      employeeId: $employeeId
+      departmentId: $departmentId
+      locationId: $locationId
+    ) {
+      from
+      to
+      plannedHours
+      actualHours
+      overtimeHours
+      rows {
+        employeeId
+        employeeName
+        date
+        shiftAssignmentId
+        timeEntryId
+        plannedStartAt
+        plannedEndAt
+        plannedMinutes
+        actualStartAt
+        actualEndAt
+        actualMinutes
+        lateMinutes
+        earlyLeaveMinutes
+        overtimeMinutes
+        status
+        approved
+        missing
+        unplanned
+      }
+    }
+  }
+`;
+
+export const CLOCK_IN_MUTATION = gql`
+  mutation ClockIn(
+    $organizationId: String!
+    $employeeId: String
+    $shiftAssignmentId: String
+    $source: TimeEntrySource
+    $note: String
+  ) {
+    clockIn(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      shiftAssignmentId: $shiftAssignmentId
+      source: $source
+      note: $note
+    ) {
+      ${TIME_ENTRY_FIELDS}
+    }
+  }
+`;
+
+export const CLOCK_OUT_MUTATION = gql`
+  mutation ClockOut(
+    $organizationId: String!
+    $employeeId: String
+    $timeEntryId: String
+    $note: String
+  ) {
+    clockOut(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      timeEntryId: $timeEntryId
+      note: $note
+    ) {
+      ${TIME_ENTRY_FIELDS}
+    }
+  }
+`;
+
+export const ADJUST_TIME_ENTRY_MUTATION = gql`
+  mutation AdjustTimeEntry(
+    $organizationId: String!
+    $id: String!
+    $clockInAt: DateTime
+    $clockOutAt: DateTime
+    $note: String
+  ) {
+    adjustTimeEntry(
+      organizationId: $organizationId
+      id: $id
+      clockInAt: $clockInAt
+      clockOutAt: $clockOutAt
+      note: $note
+    ) {
+      ${TIME_ENTRY_FIELDS}
+    }
+  }
+`;
+
+export const APPROVE_TIME_ENTRY_MUTATION = gql`
+  mutation ApproveTimeEntry($organizationId: String!, $id: String!) {
+    approveTimeEntry(organizationId: $organizationId, id: $id) {
+      ${TIME_ENTRY_FIELDS}
+    }
+  }
+`;
+
+// ─── Epic 10: labor cost, payroll & pay periods ──────────────
+
+export const LABOR_COST_REPORT_QUERY = gql`
+  query LaborCostReport(
+    $organizationId: String!
+    $from: String!
+    $to: String!
+    $groupBy: LaborCostGroupBy
+    $departmentId: String
+    $locationId: String
+    $roleId: String
+  ) {
+    laborCostReport(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      groupBy: $groupBy
+      departmentId: $departmentId
+      locationId: $locationId
+      roleId: $roleId
+    ) {
+      from
+      to
+      groupBy
+      currency
+      plannedHours
+      actualHours
+      overtimeHours
+      plannedCost
+      actualCost
+      rows {
+        key
+        label
+        plannedHours
+        actualHours
+        overtimeHours
+        hourlyRate
+        plannedCost
+        actualCost
+      }
+    }
+  }
+`;
+
+export const PAYROLL_ROWS_QUERY = gql`
+  query PayrollRows(
+    $organizationId: String!
+    $from: String!
+    $to: String!
+    $departmentId: String
+    $locationId: String
+  ) {
+    payrollRows(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      departmentId: $departmentId
+      locationId: $locationId
+    ) {
+      employeeId
+      employeeName
+      departmentName
+      roleName
+      locationName
+      hourlyRate
+      plannedHours
+      actualHours
+      overtimeHours
+      grossPay
+    }
+  }
+`;
+
+export const PAY_PERIODS_QUERY = gql`
+  query PayPeriods($organizationId: String!) {
+    payPeriods(organizationId: $organizationId) {
+      id
+      from
+      to
+      status
+      lockedAt
+    }
+  }
+`;
+
+export const PAYROLL_EXPORT_MUTATION = gql`
+  mutation PayrollExport(
+    $organizationId: String!
+    $payPeriodId: String
+    $from: String
+    $to: String
+    $format: ExportFormat
+  ) {
+    payrollExport(
+      organizationId: $organizationId
+      payPeriodId: $payPeriodId
+      from: $from
+      to: $to
+      format: $format
+    ) {
+      filename
+      mimeType
+      content
+    }
+  }
+`;
+
+export const OPEN_PAY_PERIOD_MUTATION = gql`
+  mutation OpenPayPeriod($organizationId: String!, $from: String!, $to: String!) {
+    openPayPeriod(organizationId: $organizationId, from: $from, to: $to) {
+      id
+      from
+      to
+      status
+      lockedAt
+    }
+  }
+`;
+
+export const LOCK_PAY_PERIOD_MUTATION = gql`
+  mutation LockPayPeriod($organizationId: String!, $id: String!) {
+    lockPayPeriod(organizationId: $organizationId, id: $id) {
+      id
+      from
+      to
+      status
+      lockedAt
+    }
+  }
+`;
+
+// ─── Epic 10: open shifts ────────────────────────────────────
+
+const OPEN_SHIFT_FIELDS = `
+  id
+  scheduleId
+  locationId
+  date
+  shiftTemplateId
+  roleId
+  requiredCount
+  filledCount
+  status
+  note
+`;
+
+export const OPEN_SHIFTS_QUERY = gql`
+  query OpenShifts(
+    $organizationId: String!
+    $scheduleId: String
+    $roleId: String
+    $locationId: String
+    $status: OpenShiftStatus
+    $from: String
+    $to: String
+  ) {
+    openShifts(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      roleId: $roleId
+      locationId: $locationId
+      status: $status
+      from: $from
+      to: $to
+    ) {
+      ${OPEN_SHIFT_FIELDS}
+      claims {
+        id
+        employeeId
+        status
+      }
+    }
+  }
+`;
+
+export const OPEN_SHIFT_CLAIMS_QUERY = gql`
+  query OpenShiftClaims(
+    $organizationId: String!
+    $openShiftId: String
+    $employeeId: String
+    $status: ClaimStatus
+  ) {
+    openShiftClaims(
+      organizationId: $organizationId
+      openShiftId: $openShiftId
+      employeeId: $employeeId
+      status: $status
+    ) {
+      id
+      openShiftId
+      employeeId
+      status
+      message
+      assignmentId
+      reviewedAt
+      createdAt
+      employee {
+        id
+        fullName
+      }
+      openShift {
+        ${OPEN_SHIFT_FIELDS}
+      }
+    }
+  }
+`;
+
+export const PUBLISH_OPEN_SHIFT_MUTATION = gql`
+  mutation PublishOpenShift(
+    $organizationId: String!
+    $scheduleId: String!
+    $date: String!
+    $shiftTemplateId: String!
+    $roleId: String!
+    $requiredCount: Int
+    $locationId: String
+    $note: String
+  ) {
+    publishOpenShift(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      date: $date
+      shiftTemplateId: $shiftTemplateId
+      roleId: $roleId
+      requiredCount: $requiredCount
+      locationId: $locationId
+      note: $note
+    ) {
+      ${OPEN_SHIFT_FIELDS}
+    }
+  }
+`;
+
+export const GENERATE_OPEN_SHIFTS_MUTATION = gql`
+  mutation GenerateOpenShifts($organizationId: String!, $scheduleId: String!) {
+    generateOpenShifts(organizationId: $organizationId, scheduleId: $scheduleId) {
+      ${OPEN_SHIFT_FIELDS}
+    }
+  }
+`;
+
+export const CANCEL_OPEN_SHIFT_MUTATION = gql`
+  mutation CancelOpenShift($organizationId: String!, $id: String!) {
+    cancelOpenShift(organizationId: $organizationId, id: $id) {
+      ${OPEN_SHIFT_FIELDS}
+    }
+  }
+`;
+
+export const CLAIM_OPEN_SHIFT_MUTATION = gql`
+  mutation ClaimOpenShift($organizationId: String!, $openShiftId: String!, $message: String) {
+    claimOpenShift(organizationId: $organizationId, openShiftId: $openShiftId, message: $message) {
+      id
+      openShiftId
+      employeeId
+      status
+    }
+  }
+`;
+
+export const WITHDRAW_OPEN_SHIFT_CLAIM_MUTATION = gql`
+  mutation WithdrawOpenShiftClaim($organizationId: String!, $id: String!) {
+    withdrawOpenShiftClaim(organizationId: $organizationId, id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const APPROVE_OPEN_SHIFT_CLAIM_MUTATION = gql`
+  mutation ApproveOpenShiftClaim($organizationId: String!, $id: String!) {
+    approveOpenShiftClaim(organizationId: $organizationId, id: $id) {
+      id
+      status
+      assignmentId
+    }
+  }
+`;
+
+export const REJECT_OPEN_SHIFT_CLAIM_MUTATION = gql`
+  mutation RejectOpenShiftClaim($organizationId: String!, $id: String!) {
+    rejectOpenShiftClaim(organizationId: $organizationId, id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+// ─── Epic 10: integrations ───────────────────────────────────
+
+export const WEBHOOKS_QUERY = gql`
+  query Webhooks($organizationId: String!) {
+    webhooks(organizationId: $organizationId) {
+      id
+      url
+      events
+      description
+      active
+      createdAt
+    }
+  }
+`;
+
+export const WEBHOOK_DELIVERIES_QUERY = gql`
+  query WebhookDeliveries($organizationId: String!, $webhookId: String, $take: Int) {
+    webhookDeliveries(organizationId: $organizationId, webhookId: $webhookId, take: $take) {
+      id
+      webhookId
+      event
+      status
+      attempts
+      responseCode
+      error
+      nextAttemptAt
+      deliveredAt
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_WEBHOOK_MUTATION = gql`
+  mutation CreateWebhook(
+    $organizationId: String!
+    $url: String!
+    $events: [String!]!
+    $description: String
+    $active: Boolean
+  ) {
+    createWebhook(
+      organizationId: $organizationId
+      url: $url
+      events: $events
+      description: $description
+      active: $active
+    ) {
+      secret
+      webhook {
+        id
+        url
+        events
+        description
+        active
+        createdAt
+      }
+    }
+  }
+`;
+
+export const UPDATE_WEBHOOK_MUTATION = gql`
+  mutation UpdateWebhook(
+    $organizationId: String!
+    $id: String!
+    $url: String
+    $events: [String!]
+    $description: String
+    $active: Boolean
+  ) {
+    updateWebhook(
+      organizationId: $organizationId
+      id: $id
+      url: $url
+      events: $events
+      description: $description
+      active: $active
+    ) {
+      id
+      url
+      events
+      description
+      active
+    }
+  }
+`;
+
+export const ROTATE_WEBHOOK_SECRET_MUTATION = gql`
+  mutation RotateWebhookSecret($organizationId: String!, $id: String!) {
+    rotateWebhookSecret(organizationId: $organizationId, id: $id) {
+      secret
+      webhook {
+        id
+      }
+    }
+  }
+`;
+
+export const DELETE_WEBHOOK_MUTATION = gql`
+  mutation DeleteWebhook($organizationId: String!, $id: String!) {
+    deleteWebhook(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const CALENDAR_FEED_TOKENS_QUERY = gql`
+  query CalendarFeedTokens($organizationId: String!, $employeeId: String) {
+    calendarFeedTokens(organizationId: $organizationId, employeeId: $employeeId) {
+      id
+      employeeId
+      scope
+      token
+      revokedAt
+      lastUsedAt
+      createdAt
+    }
+  }
+`;
+
+export const CALENDAR_FEED_URL_QUERY = gql`
+  query CalendarFeedUrl($organizationId: String!, $token: String!) {
+    calendarFeedUrl(organizationId: $organizationId, token: $token)
+  }
+`;
+
+export const ISSUE_CALENDAR_FEED_TOKEN_MUTATION = gql`
+  mutation IssueCalendarFeedToken(
+    $organizationId: String!
+    $scope: CalendarFeedScope
+    $employeeId: String
+  ) {
+    issueCalendarFeedToken(
+      organizationId: $organizationId
+      scope: $scope
+      employeeId: $employeeId
+    ) {
+      id
+      employeeId
+      scope
+      token
+      createdAt
+    }
+  }
+`;
+
+export const REVOKE_CALENDAR_FEED_TOKEN_MUTATION = gql`
+  mutation RevokeCalendarFeedToken($organizationId: String!, $id: String!) {
+    revokeCalendarFeedToken(organizationId: $organizationId, id: $id) {
+      id
+      revokedAt
+    }
+  }
+`;
+
+export const INTEGRATION_CONNECTIONS_QUERY = gql`
+  query IntegrationConnections($organizationId: String!) {
+    integrationConnections(organizationId: $organizationId) {
+      id
+      type
+      active
+      config
+      createdAt
+    }
+  }
+`;
+
+export const CONNECT_INTEGRATION_MUTATION = gql`
+  mutation ConnectIntegration(
+    $organizationId: String!
+    $type: IntegrationType!
+    $config: JSON!
+    $active: Boolean
+  ) {
+    connectIntegration(
+      organizationId: $organizationId
+      type: $type
+      config: $config
+      active: $active
+    ) {
+      id
+      type
+      active
+      config
+    }
+  }
+`;
+
+export const DISCONNECT_INTEGRATION_MUTATION = gql`
+  mutation DisconnectIntegration($organizationId: String!, $id: String!) {
+    disconnectIntegration(organizationId: $organizationId, id: $id)
+  }
+`;
+
+// ─── Epic 10: documents & certifications ─────────────────────
+
+export const EMPLOYEE_DOCUMENTS_QUERY = gql`
+  query EmployeeDocuments($organizationId: String!, $employeeId: String) {
+    employeeDocuments(organizationId: $organizationId, employeeId: $employeeId) {
+      id
+      employeeId
+      type
+      fileName
+      url
+      mimeType
+      size
+      createdAt
+    }
+  }
+`;
+
+export const DELETE_EMPLOYEE_DOCUMENT_MUTATION = gql`
+  mutation DeleteEmployeeDocument($organizationId: String!, $id: String!) {
+    deleteEmployeeDocument(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const CERTIFICATIONS_QUERY = gql`
+  query Certifications(
+    $organizationId: String!
+    $employeeId: String
+    $status: CertificationStatus
+  ) {
+    certifications(organizationId: $organizationId, employeeId: $employeeId, status: $status) {
+      id
+      employeeId
+      skillId
+      name
+      issuedAt
+      expiresAt
+      status
+      employee {
+        id
+        fullName
+      }
+    }
+  }
+`;
+
+export const CREATE_CERTIFICATION_MUTATION = gql`
+  mutation CreateCertification(
+    $organizationId: String!
+    $employeeId: String!
+    $name: String!
+    $skillId: String
+    $issuedAt: String
+    $expiresAt: String
+  ) {
+    createCertification(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      name: $name
+      skillId: $skillId
+      issuedAt: $issuedAt
+      expiresAt: $expiresAt
+    ) {
+      id
+      name
+      issuedAt
+      expiresAt
+      status
+    }
+  }
+`;
+
+export const UPDATE_CERTIFICATION_MUTATION = gql`
+  mutation UpdateCertification(
+    $organizationId: String!
+    $id: String!
+    $name: String
+    $skillId: String
+    $issuedAt: String
+    $expiresAt: String
+  ) {
+    updateCertification(
+      organizationId: $organizationId
+      id: $id
+      name: $name
+      skillId: $skillId
+      issuedAt: $issuedAt
+      expiresAt: $expiresAt
+    ) {
+      id
+      name
+      issuedAt
+      expiresAt
+      status
+    }
+  }
+`;
+
+export const DELETE_CERTIFICATION_MUTATION = gql`
+  mutation DeleteCertification($organizationId: String!, $id: String!) {
+    deleteCertification(organizationId: $organizationId, id: $id)
+  }
+`;
+
+// ─── Epic 10: billing ────────────────────────────────────────
+
+export const SUBSCRIPTION_QUERY = gql`
+  query Subscription($organizationId: String!) {
+    subscription(organizationId: $organizationId) {
+      id
+      plan
+      status
+      stripeCustomerId
+      currentPeriodEnd
+      cancelAtPeriodEnd
+      employeeCount
+      locationCount
+      limits {
+        plan
+        maxEmployees
+        maxLocations
+        features
+      }
+    }
+  }
+`;
+
+export const INVOICES_QUERY = gql`
+  query Invoices($organizationId: String!) {
+    invoices(organizationId: $organizationId) {
+      id
+      stripeInvoiceId
+      number
+      status
+      amountDue
+      amountPaid
+      currency
+      hostedInvoiceUrl
+      issuedAt
+    }
+  }
+`;
+
+export const CREATE_CHECKOUT_SESSION_MUTATION = gql`
+  mutation CreateCheckoutSession(
+    $organizationId: String!
+    $plan: SubscriptionPlan!
+    $successUrl: String
+    $cancelUrl: String
+  ) {
+    createCheckoutSession(
+      organizationId: $organizationId
+      plan: $plan
+      successUrl: $successUrl
+      cancelUrl: $cancelUrl
+    ) {
+      url
+    }
+  }
+`;
+
+export const CREATE_BILLING_PORTAL_SESSION_MUTATION = gql`
+  mutation CreateBillingPortalSession($organizationId: String!, $returnUrl: String) {
+    createBillingPortalSession(organizationId: $organizationId, returnUrl: $returnUrl) {
+      url
+    }
+  }
+`;

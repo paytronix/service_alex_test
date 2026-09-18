@@ -26,6 +26,8 @@ import {
   EmployeeTable,
 } from "../components/employees/EmployeeTable";
 import { EmployeeCard, EmployeeDetail } from "../components/employees/EmployeeCard";
+import { CertificationsPanel } from "../components/employees/CertificationsPanel";
+import { EmployeeDocumentsPanel } from "../components/employees/EmployeeDocumentsPanel";
 import {
   EmployeeForm,
   EmployeeFormValues,
@@ -307,6 +309,17 @@ export function EmployeesPage() {
                   onReject={async (id) => {
                     await rejectLeaveRequest({ variables: { organizationId, id } });
                   }}
+                />
+                <EmployeeDocumentsPanel
+                  organizationId={organizationId}
+                  employeeId={employee.id}
+                  canManage={canManage}
+                />
+                <CertificationsPanel
+                  organizationId={organizationId}
+                  employeeId={employee.id}
+                  canManage={canManage}
+                  skills={skillsData?.skills ?? []}
                 />
               </EmployeeCard>
             )}

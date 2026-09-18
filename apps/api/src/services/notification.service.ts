@@ -1,4 +1,5 @@
 import {
+  IntegrationType,
   Notification,
   NotificationChannel,
   NotificationStatus,
@@ -8,11 +9,29 @@ import {
 import { prisma } from "../utils/prisma";
 import { notificationTopic, pubsub } from "../utils/pubsub";
 import {
+  ChatIntegrationConfig,
   EmailChannel,
   InAppChannel,
   NotificationChannelSender,
   OutgoingNotification,
+  SlackChannel,
+  TelegramChannel,
 } from "./notification-channels";
+
+/** Active chat integration of an organization, used by the chat channels. */
+async function chatIntegration(
+  organizationId: string,
+  type: IntegrationType,
+): Promise<ChatIntegrationConfig | null> {
+  const connection = await prisma.integrationConnection.findFirst({
+    where: { organizationId, type, active: true },
+  });
+  if (!connection) return null;
+  return {
+    active: connection.active,
+    config: (connection.config ?? {}) as Record<string, unknown>,
+  };
+}
 
 export interface NotifyInput {
   organizationId: string;
@@ -61,6 +80,10 @@ export class NotificationService {
         );
       }),
       new EmailChannel(),
+      new TelegramChannel((organizationId) =>
+        chatIntegration(organizationId, IntegrationType.TELEGRAM),
+      ),
+      new SlackChannel((organizationId) => chatIntegration(organizationId, IntegrationType.SLACK)),
     ];
     this.senders = new Map(senders.map((sender) => [sender.channel, sender]));
     this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
@@ -272,6 +295,23 @@ export class NotificationService {
     const channels: NotificationChannel[] = [];
     if (organization?.notifyInApp !== false) channels.push(NotificationChannel.IN_APP);
     if (organization?.notifyByEmail) channels.push(NotificationChannel.EMAIL);
+
+    // Chat channels are enabled implicitly by connecting the integration.
+    const connections = await prisma.integrationConnection.findMany({
+      where: {
+        organizationId: input.organizationId,
+        active: true,
+        type: { in: [IntegrationType.TELEGRAM, IntegrationType.SLACK] },
+      },
+      select: { type: true },
+    });
+    for (const connection of connections) {
+      channels.push(
+        connection.type === IntegrationType.TELEGRAM
+          ? NotificationChannel.TELEGRAM
+          : NotificationChannel.SLACK,
+      );
+    }
     return channels;
   }
 }

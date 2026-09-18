@@ -51,6 +51,7 @@ import { TemplatePanel } from "../components/scheduler/TemplatePanel";
 import { useOfflineSync } from "../components/scheduler/useOfflineSync";
 import { useScheduleRealtime } from "../components/scheduler/useScheduleRealtime";
 import { SwapQueuePanel } from "../components/swaps/SwapQueuePanel";
+import { OpenShiftPanel } from "../components/scheduler/OpenShiftPanel";
 import { EmployeePalette } from "../components/scheduler/EmployeePalette";
 import { EmployeeView } from "../components/scheduler/EmployeeView";
 import { RoleView } from "../components/scheduler/RoleView";
@@ -650,6 +651,15 @@ export function SchedulerPage() {
               onGenerated={refreshSchedule}
             />
           )}
+          <OpenShiftPanel
+            organizationId={organizationId}
+            scheduleId={schedule.id}
+            locationId={locationId}
+            weekDates={week}
+            shiftTemplates={shiftTemplates}
+            roles={roles}
+            canManage={canManage}
+          />
           <SwapQueuePanel
             organizationId={organizationId}
             canApprove={canManage}

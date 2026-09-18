@@ -17,6 +17,10 @@ import {
 import "./events";
 import { createReportsRouter } from "./routes/reports";
 import { createAttachmentsRouter } from "./routes/attachments";
+import { createBillingRouter } from "./routes/billing";
+import { createCalendarRouter } from "./routes/calendar";
+import { createEmployeeDocumentsRouter } from "./routes/employee-documents";
+import { startScheduler } from "./jobs/scheduler";
 
 async function main() {
   const app = express();
@@ -66,6 +70,13 @@ async function main() {
 
   app.use("/api/attachments", createAttachmentsRouter());
 
+  app.use("/api/employee-documents", createEmployeeDocumentsRouter());
+
+  app.use("/api/calendar", createCalendarRouter());
+
+  // Mounted before the JSON parser: Stripe needs the raw body for signatures.
+  app.use("/api/billing", createBillingRouter());
+
   app.use(
     "/graphql",
     cors<cors.CorsRequest>({
@@ -81,6 +92,8 @@ async function main() {
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  startScheduler();
 
   const PORT = parseInt(process.env.PORT || "4000", 10);
   httpServer.listen(PORT, () => {

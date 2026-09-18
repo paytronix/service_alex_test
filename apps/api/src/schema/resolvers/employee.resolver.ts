@@ -10,6 +10,7 @@ import {
   LeaveStatusEnum,
   LeaveTypeEnum,
 } from "../types/employee";
+import { billingService } from "../../services/billing.service";
 import { EmployeeService } from "../../services/employee.service";
 import { AvailabilityService } from "../../services/availability.service";
 import { LeaveRequestService } from "../../services/leave-request.service";
@@ -155,6 +156,7 @@ builder.mutationField("createEmployee", (t) =>
     resolve: async (_root, args, ctx) => {
       const userId = requireUser(ctx);
       await requireManager(ctx, args.organizationId);
+      await billingService.assertCanAddEmployee(args.organizationId);
       return employeeService.create(args.organizationId, userId, {
         firstName: args.firstName,
         lastName: args.lastName,
