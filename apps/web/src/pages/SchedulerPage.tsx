@@ -240,10 +240,11 @@ export function SchedulerPage() {
   const validateDrop = async (activeValue: ActiveDrag, target: DropTarget): Promise<void> => {
     if (!schedule?.id) return;
     const assignment = activeValue.type === "assignment" ? activeValue.assignment : null;
-    const template = shiftTemplates.find((item) => item.id === target.shiftTemplateId);
+    const shiftTemplateId = target.shiftTemplateId ?? assignment?.shiftTemplateId ?? null;
+    const template = shiftTemplates.find((item) => item.id === shiftTemplateId);
     const employeeId = target.employeeId ?? assignment?.employeeId ?? (activeValue.type === "employee" ? activeValue.employee.id : "");
     if (!employeeId || !template) return;
-    const key = `${employeeId}:${target.date}:${target.shiftTemplateId}`;
+    const key = `${employeeId}:${target.date}:${template.id}`;
     if (lastValidation.current === key) return;
     lastValidation.current = key;
     const result = await validateAssignment({
@@ -252,7 +253,7 @@ export function SchedulerPage() {
         input: {
           scheduleId: schedule?.id,
           employeeId,
-          shiftTemplateId: target.shiftTemplateId,
+          shiftTemplateId: template.id,
           date: dateTime(target.date),
           startTime: assignment?.effectiveStartTime ?? template.startTime,
           endTime: assignment?.effectiveEndTime ?? template.endTime,
