@@ -93,6 +93,9 @@ erDiagram
         uuid id PK
         string name
         string description
+        string color
+        int maxLoad
+        decimal hourlyRate
         uuid organizationId FK
         datetime createdAt
         datetime updatedAt
@@ -103,6 +106,7 @@ erDiagram
         string name
         uuid organizationId FK
         datetime createdAt
+        datetime updatedAt
     }
 
     Employee {
@@ -147,6 +151,7 @@ erDiagram
         uuid roleId FK
         string startTime
         string endTime
+        boolean crossesMidnight
         int breakMinutes
         int minEmployees
         int maxEmployees
@@ -225,7 +230,10 @@ erDiagram
 5. **Respect leave requests**: Employees with approved leave requests cannot be assigned shifts during their leave period.
 6. **Role matching**: If a `ShiftTemplate` specifies a required `Role`, only employees with that role can be assigned.
 7. **Skill matching**: If a `ShiftTemplate` lists required `Skills`, assigned employees must possess those skills.
-8. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable (archive and create new).
+8. **Catalog name uniqueness**: `Department`, `Role`, `Skill`, and `ShiftTemplate` names are unique within an organization (`@@unique([name, organizationId])`) and stored trimmed.
+9. **Night shifts**: `ShiftTemplate.crossesMidnight` is derived from the times — it is `true` when `endTime <= startTime` (e.g. 23:00–08:00), which also covers 24-hour templates.
+10. **Catalog scoping and permissions**: catalog reads are scoped to the organization from the auth context and available to any member; create/update/delete are restricted to `OWNER`/`MANAGER` and recorded in `AuditLog`.
+11. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable (archive and create new).
 
 ## Enums
 

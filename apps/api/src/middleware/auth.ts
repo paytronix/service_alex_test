@@ -41,6 +41,19 @@ export function createContext(req: Request): GraphQLContext {
   };
 }
 
+/** Any authenticated member of the organization. */
+export const requireMember = (ctx: GraphQLContext, organizationId: string) =>
+  requireRole(
+    MembershipRole.OWNER,
+    MembershipRole.MANAGER,
+    MembershipRole.SUPERVISOR,
+    MembershipRole.EMPLOYEE,
+  )(ctx, organizationId);
+
+/** Members allowed to modify organization-wide configuration. */
+export const requireManager = (ctx: GraphQLContext, organizationId: string) =>
+  requireRole(MembershipRole.OWNER, MembershipRole.MANAGER)(ctx, organizationId);
+
 export function requireRole(...roles: MembershipRole[]) {
   return async (
     ctx: GraphQLContext,

@@ -4,6 +4,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { CatalogsPage } from "./pages/CatalogsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export function App() {
@@ -18,6 +19,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/catalogs"
+        element={
+          <ProtectedRoute>
+            <CatalogsPage />
           </ProtectedRoute>
         }
       />
