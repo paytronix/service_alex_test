@@ -5,7 +5,28 @@ export enum MembershipRole {
   EMPLOYEE = "EMPLOYEE",
 }
 
-export enum LeaveRequestStatus {
+export enum EmployeeStatus {
+  WORKING = "WORKING",
+  VACATION = "VACATION",
+  SICK = "SICK",
+  DISMISSED = "DISMISSED",
+}
+
+export enum AvailabilityType {
+  UNAVAILABLE = "UNAVAILABLE",
+  AVAILABLE = "AVAILABLE",
+  AVAILABLE_AFTER = "AVAILABLE_AFTER",
+}
+
+export enum LeaveType {
+  VACATION = "VACATION",
+  DAY_OFF = "DAY_OFF",
+  SICK = "SICK",
+  UNPAID = "UNPAID",
+  OTHER = "OTHER",
+}
+
+export enum LeaveStatus {
   PENDING = "PENDING",
   APPROVED = "APPROVED",
   REJECTED = "REJECTED",

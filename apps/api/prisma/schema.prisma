@@ -25,8 +25,10 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  memberships Membership[]
-  auditLogs   AuditLog[]   @relation("AuditUser")
+  memberships      Membership[]
+  auditLogs        AuditLog[]     @relation("AuditUser")
+  employeeProfiles Employee[]
+  reviewedLeaves   LeaveRequest[] @relation("LeaveReviewer")
 
   @@map("users")
 }
@@ -59,6 +61,7 @@ model Organization {
   invitations    Invitation[]
   auditLogs      AuditLog[]
   notifications  Notification[]
+  leaveRequests  LeaveRequest[]
 
   @@map("organizations")
 }
@@ -160,23 +163,35 @@ model Skill {
 
 // ─── Employees ───────────────────────────────────────────────
 
+enum EmployeeStatus {
+  WORKING
+  VACATION
+  SICK
+  DISMISSED
+}
+
 model Employee {
-  id             String    @id @default(uuid())
-  externalUserId String?
-  firstName      String
-  lastName       String
-  email          String
-  phone          String?
-  hireDate       DateTime?
-  hourlyRate     Decimal?
-  organizationId String
-  departmentId   String?
-  roleId         String?
-  isActive       Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                   String         @id @default(uuid())
+  userId               String?
+  firstName            String
+  lastName             String
+  email                String
+  phone                String?
+  photoUrl             String?
+  hireDate             DateTime?
+  hourlyRate           Decimal?
+  status               EmployeeStatus @default(WORKING)
+  maxHoursPerWeek      Int?
+  maxConsecutiveShifts Int?
+  minRestHours         Int?
+  organizationId       String
+  departmentId         String?
+  roleId               String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   department       Department?       @relation(fields: [departmentId], references: [id])
   role             Role?             @relation(fields: [roleId], references: [id])
   skills           EmployeeSkill[]
@@ -185,6 +200,7 @@ model Employee {
   leaveRequests    LeaveRequest[]
 
   @@unique([email, organizationId])
+  @@unique([userId, organizationId])
   @@map("employees")
 }
 
@@ -206,17 +222,24 @@ model EmployeeSkill {
 
 // ─── Availability ────────────────────────────────────────────
 
+enum AvailabilityType {
+  UNAVAILABLE
+  AVAILABLE
+  AVAILABLE_AFTER
+}
+
 model Availability {
-  id         String   @id @default(uuid())
-  employeeId String
-  dayOfWeek  Int
-  startTime  String
-  endTime    String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String           @id @default(uuid())
+  employeeId    String
+  dayOfWeek     Int
+  type          AvailabilityType @default(AVAILABLE)
+  availableFrom String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
+  @@unique([employeeId, dayOfWeek])
   @@map("availabilities")
 }
 
@@ -302,25 +325,38 @@ model ShiftAssignment {
 
 // ─── Leave Requests ──────────────────────────────────────────
 
-enum LeaveRequestStatus {
+enum LeaveStatus {
   PENDING
   APPROVED
   REJECTED
   CANCELLED
 }
 
-model LeaveRequest {
-  id         String             @id @default(uuid())
-  employeeId String
-  startDate  DateTime
-  endDate    DateTime
-  reason     String?
-  status     LeaveRequestStatus @default(PENDING)
-  reviewedBy String?
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
+enum LeaveType {
+  VACATION
+  DAY_OFF
+  SICK
+  UNPAID
+  OTHER
+}
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+model LeaveRequest {
+  id             String      @id @default(uuid())
+  employeeId     String
+  organizationId String
+  type           LeaveType   @default(VACATION)
+  startDate      DateTime
+  endDate        DateTime
+  reason         String?
+  status         LeaveStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@map("leave_requests")
 }

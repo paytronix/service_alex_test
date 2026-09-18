@@ -2,6 +2,7 @@ import { Request } from "express";
 import { verifyAccessToken } from "../utils/jwt";
 import { prisma } from "../utils/prisma";
 import { MembershipRole } from "@prisma/client";
+import { createLoaders, Loaders } from "../utils/loaders";
 
 export interface AuthContext {
   userId: string;
@@ -11,6 +12,7 @@ export interface AuthContext {
 export interface GraphQLContext {
   user: AuthContext | null;
   prisma: typeof prisma;
+  loaders: Loaders;
   getMembership: (organizationId: string) => Promise<{ role: MembershipRole } | null>;
 }
 
@@ -31,6 +33,7 @@ export function createContext(req: Request): GraphQLContext {
   return {
     user,
     prisma,
+    loaders: createLoaders(),
     getMembership: async (organizationId: string) => {
       if (!user) return null;
       return prisma.membership.findUnique({
