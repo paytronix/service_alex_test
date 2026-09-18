@@ -76,6 +76,8 @@ builder.queryField("schedule", (t) =>
     args: {
       organizationId: t.arg.string({ required: true }),
       weekStartDate: t.arg({ type: "DateTime", required: true }),
+      locationId: t.arg.string(),
+      calendarId: t.arg.string(),
     },
     resolve: async (_root, args, ctx) => {
       const role = await requireMember(ctx, args.organizationId);
@@ -83,6 +85,10 @@ builder.queryField("schedule", (t) =>
         args.organizationId,
         args.weekStartDate,
         role !== MembershipRole.EMPLOYEE,
+        {
+          ...(args.locationId !== undefined && { locationId: args.locationId }),
+          ...(args.calendarId !== undefined && { calendarId: args.calendarId }),
+        },
       );
     },
   }),
@@ -118,6 +124,8 @@ builder.queryField("schedules", (t) =>
       status: t.arg({ type: ScheduleStatusEnum, required: false }),
       skip: t.arg.int({ required: false }),
       take: t.arg.int({ required: false }),
+      locationId: t.arg.string(),
+      calendarId: t.arg.string(),
     },
     resolve: async (_root, args, ctx) => {
       const role = await requireMember(ctx, args.organizationId);
@@ -127,6 +135,10 @@ builder.queryField("schedules", (t) =>
         args.skip ?? undefined,
         args.take ?? undefined,
         role !== MembershipRole.EMPLOYEE,
+        {
+          ...(args.locationId !== undefined && { locationId: args.locationId }),
+          ...(args.calendarId !== undefined && { calendarId: args.calendarId }),
+        },
       );
     },
   }),
@@ -188,11 +200,16 @@ builder.mutationField("createDraftSchedule", (t) =>
     args: {
       organizationId: t.arg.string({ required: true }),
       weekStartDate: t.arg({ type: "DateTime", required: true }),
+      locationId: t.arg.string(),
+      calendarId: t.arg.string(),
     },
     resolve: async (_root, args, ctx) => {
       const userId = requireUser(ctx);
       await requireManager(ctx, args.organizationId);
-      return scheduleService.createDraft(args.organizationId, userId, args.weekStartDate);
+      return scheduleService.createDraft(args.organizationId, userId, args.weekStartDate, {
+        locationId: args.locationId ?? null,
+        calendarId: args.calendarId ?? null,
+      });
     },
   }),
 );

@@ -176,20 +176,112 @@ async function main() {
     },
   });
 
+  const mainLocation = await prisma.location.upsert({
+    where: { name_organizationId: { name: "Main street", organizationId: organization.id } },
+    update: { isDefault: true },
+    create: {
+      organizationId: organization.id,
+      name: "Main street",
+      timezone: "UTC",
+      address: "1 Main street",
+      isDefault: true,
+    },
+  });
+  await prisma.location.upsert({
+    where: { name_organizationId: { name: "Riverside", organizationId: organization.id } },
+    update: {},
+    create: {
+      organizationId: organization.id,
+      name: "Riverside",
+      timezone: "UTC",
+      address: "42 River road",
+    },
+  });
+
+  const hallCalendar = await prisma.calendar.upsert({
+    where: { name_organizationId: { name: "Hall", organizationId: organization.id } },
+    update: { locationId: mainLocation.id },
+    create: {
+      organizationId: organization.id,
+      locationId: mainLocation.id,
+      name: "Hall",
+      color: "#3B82F6",
+    },
+  });
+  await prisma.calendar.upsert({
+    where: { name_organizationId: { name: "Kitchen", organizationId: organization.id } },
+    update: { locationId: mainLocation.id },
+    create: {
+      organizationId: organization.id,
+      locationId: mainLocation.id,
+      name: "Kitchen",
+      color: "#F97316",
+    },
+  });
+
+  await prisma.employee.update({
+    where: { id: emma.id },
+    data: { locationId: mainLocation.id },
+  });
+  await prisma.employee.update({
+    where: { id: liam.id },
+    data: { locationId: mainLocation.id },
+  });
+
+  const summerTemplate = await prisma.weekTemplate.upsert({
+    where: { name_organizationId: { name: "Summer", organizationId: organization.id } },
+    update: { locationId: mainLocation.id, calendarId: hallCalendar.id },
+    create: {
+      organizationId: organization.id,
+      locationId: mainLocation.id,
+      calendarId: hallCalendar.id,
+      name: "Summer",
+      description: "Busy season staffing pattern",
+    },
+  });
+
+  const summerRules = [
+    { dayOfWeek: 1, shiftTemplateId: morningTemplate.id, roleId: barista.id, requiredCount: 2 },
+    { dayOfWeek: 5, shiftTemplateId: nightTemplate.id, roleId: cook.id, requiredCount: 1 },
+  ];
+  for (const rule of summerRules) {
+    const existingRule = await prisma.recurringShiftRule.findFirst({
+      where: {
+        organizationId: organization.id,
+        weekTemplateId: summerTemplate.id,
+        dayOfWeek: rule.dayOfWeek,
+        shiftTemplateId: rule.shiftTemplateId,
+      },
+    });
+    if (!existingRule) {
+      await prisma.recurringShiftRule.create({
+        data: { organizationId: organization.id, weekTemplateId: summerTemplate.id, ...rule },
+      });
+    }
+  }
+
   const now = new Date();
   const monday = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)),
   );
-  const schedule = await prisma.schedule.upsert({
+  const existingSchedule = await prisma.schedule.findFirst({
     where: {
-      organizationId_weekStartDate: {
+      organizationId: organization.id,
+      weekStartDate: monday,
+      locationId: mainLocation.id,
+      calendarId: hallCalendar.id,
+    },
+  });
+  const schedule =
+    existingSchedule ??
+    (await prisma.schedule.create({
+      data: {
         organizationId: organization.id,
         weekStartDate: monday,
+        locationId: mainLocation.id,
+        calendarId: hallCalendar.id,
       },
-    },
-    update: {},
-    create: { organizationId: organization.id, weekStartDate: monday },
-  });
+    }));
 
   const assignmentDate = monday;
   const existingEmmaAssignment = await prisma.shiftAssignment.findFirst({

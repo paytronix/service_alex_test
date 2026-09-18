@@ -18,9 +18,11 @@ import {
 } from "@shiftflow/shared";
 import {
   ASSIGN_SHIFT_MUTATION,
+  CALENDARS_QUERY,
   COPY_SHIFT_MUTATION,
   CREATE_DRAFT_SCHEDULE_MUTATION,
   EMPLOYEES_QUERY,
+  LOCATIONS_QUERY,
   MOVE_SHIFT_MUTATION,
   MY_ORGANIZATIONS_QUERY,
   PUBLISH_SCHEDULE_MUTATION,
@@ -35,7 +37,20 @@ import {
   SHIFT_TEMPLATES_QUERY,
   VALIDATE_ASSIGNMENT_QUERY,
 } from "../lib/graphql";
+import { useCurrentUser } from "../providers/AuthProvider";
+import { BulkActionPanel } from "../components/scheduler/BulkActionPanel";
 import { CalendarView } from "../components/scheduler/CalendarView";
+import {
+  LocationCalendarSelector,
+  type CalendarOption,
+  type LocationOption,
+} from "../components/scheduler/LocationCalendarSelector";
+import { ShiftDetailPanel } from "../components/scheduler/ShiftDetailPanel";
+import { ShiftInteractionProvider } from "../components/scheduler/ShiftInteractionContext";
+import { TemplatePanel } from "../components/scheduler/TemplatePanel";
+import { useOfflineSync } from "../components/scheduler/useOfflineSync";
+import { useScheduleRealtime } from "../components/scheduler/useScheduleRealtime";
+import { SwapQueuePanel } from "../components/swaps/SwapQueuePanel";
 import { EmployeePalette } from "../components/scheduler/EmployeePalette";
 import { EmployeeView } from "../components/scheduler/EmployeeView";
 import { RoleView } from "../components/scheduler/RoleView";
@@ -158,14 +173,19 @@ export function SchedulerPage() {
   >({});
   const [copyMode, setCopyMode] = useState(false);
   const [dropValidation, setDropValidation] = useState<ValidationData["validateAssignment"] | null>(null);
+  const [locationId, setLocationId] = useState<string | null>(null);
+  const [calendarId, setCalendarId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [detailAssignmentId, setDetailAssignmentId] = useState<string | null>(null);
   const lastValidation = useRef("");
 
+  const user = useCurrentUser();
   const organizations = useApolloQuery<OrganizationsData>(MY_ORGANIZATIONS_QUERY);
   const organization = organizations.data?.myOrganizations[0];
   const organizationId = organization?.id ?? "";
   const canManage = canManageSchedule(organization?.role);
   const canEdit = canAssignShifts(organization?.role);
-  const variables = { organizationId, weekStartDate: dateTime(weekStart) };
+  const variables = { organizationId, weekStartDate: dateTime(weekStart), locationId, calendarId };
   const scheduleQuery = useApolloQuery<SchedulerData>(SCHEDULE_QUERY, {
     variables,
     skip: !organizationId,
@@ -176,7 +196,15 @@ export function SchedulerPage() {
     skip: !organizationId || !schedule?.id,
   });
   const employeesQuery = useApolloQuery<EmployeesData>(EMPLOYEES_QUERY, {
+    variables: { organizationId, locationId },
+    skip: !organizationId,
+  });
+  const locationsQuery = useApolloQuery<{ locations: LocationOption[] }>(LOCATIONS_QUERY, {
     variables: { organizationId },
+    skip: !organizationId,
+  });
+  const calendarsQuery = useApolloQuery<{ calendars: CalendarOption[] }>(CALENDARS_QUERY, {
+    variables: { organizationId, locationId },
     skip: !organizationId,
   });
   const rolesQuery = useApolloQuery<RolesData>(ROLES_QUERY, {
@@ -223,6 +251,20 @@ export function SchedulerPage() {
       `${employee.firstName} ${employee.lastName}`.trim(),
     ]),
   );
+  const offline = useOfflineSync(() => {
+    void scheduleQuery.refetch();
+  });
+  const realtime = useScheduleRealtime({
+    organizationId,
+    weekStartDate: dateTime(weekStart),
+    locationId,
+    calendarId,
+    currentUserId: user?.id ?? null,
+    onRemoteUpdate: () => {
+      void scheduleQuery.refetch();
+      void coverageQuery.refetch();
+    },
+  });
   const refetchQueries = [
     { query: SCHEDULE_QUERY, variables },
     ...(schedule?.id
@@ -245,7 +287,9 @@ export function SchedulerPage() {
 
   useEffect(() => {
     setAssignmentViolations({});
-  }, [weekStart]);
+    setSelectedIds([]);
+    setDetailAssignmentId(null);
+  }, [weekStart, locationId, calendarId]);
 
   const execute = async (action: () => Promise<{ data?: ShiftMutationData | null }>): Promise<void> => {
     setError(null);
@@ -319,43 +363,43 @@ export function SchedulerPage() {
     }
     if (dropValidation) setWarnings(warningMessages(dropValidation.violations));
     if (action.kind === "assign") {
-      void execute(() =>
-        assign({
-          variables: {
-            organizationId,
-            scheduleId: schedule?.id,
-            employeeId: action.employeeId,
-            shiftTemplateId: action.shiftTemplateId,
-            date: dateTime(action.date),
-          },
-          refetchQueries,
-        }),
-      );
+      const mutationVariables = {
+        organizationId,
+        scheduleId: schedule?.id,
+        employeeId: action.employeeId,
+        shiftTemplateId: action.shiftTemplateId,
+        date: dateTime(action.date),
+      };
+      if (!offline.online) {
+        offline.enqueue("assignShift", mutationVariables);
+        return;
+      }
+      void execute(() => assign({ variables: mutationVariables, refetchQueries }));
     } else if (action.kind === "move") {
-      void execute(() =>
-        move({
-          variables: {
-            organizationId,
-            id: action.assignmentId,
-            date: dateTime(action.date),
-            shiftTemplateId: action.shiftTemplateId,
-            employeeId: action.employeeId,
-          },
-          refetchQueries,
-        }),
-      );
+      const mutationVariables = {
+        organizationId,
+        id: action.assignmentId,
+        date: dateTime(action.date),
+        shiftTemplateId: action.shiftTemplateId,
+        employeeId: action.employeeId,
+      };
+      if (!offline.online) {
+        offline.enqueue("moveShift", mutationVariables);
+        return;
+      }
+      void execute(() => move({ variables: mutationVariables, refetchQueries }));
     } else {
-      void execute(() =>
-        copy({
-          variables: {
-            organizationId,
-            id: action.assignmentId,
-            date: dateTime(action.date),
-            employeeId: action.employeeId,
-          },
-          refetchQueries,
-        }),
-      );
+      const mutationVariables = {
+        organizationId,
+        id: action.assignmentId,
+        date: dateTime(action.date),
+        employeeId: action.employeeId,
+      };
+      if (!offline.online) {
+        offline.enqueue("copyShift", mutationVariables);
+        return;
+      }
+      void execute(() => copy({ variables: mutationVariables, refetchQueries }));
     }
   };
 
@@ -368,6 +412,10 @@ export function SchedulerPage() {
   };
 
   const removeAssignment = (assignment: SchedulerAssignment) => {
+    if (!offline.online) {
+      offline.enqueue("removeShift", { organizationId, id: assignment.id });
+      return;
+    }
     void execute(() =>
       remove({
         variables: { organizationId, id: assignment.id },
@@ -375,6 +423,27 @@ export function SchedulerPage() {
       }),
     );
   };
+
+  const refreshSchedule = () => {
+    void scheduleQuery.refetch();
+    void coverageQuery.refetch();
+  };
+
+  const interaction = {
+    selectedIds,
+    toggleSelected: (assignmentId: string) =>
+      setSelectedIds((current) =>
+        current.includes(assignmentId)
+          ? current.filter((id) => id !== assignmentId)
+          : [...current, assignmentId],
+      ),
+    openDetails: (assignment: SchedulerAssignment) => setDetailAssignmentId(assignment.id),
+  };
+  const selectedAssignments = assignments.filter((assignment) =>
+    selectedIds.includes(assignment.id),
+  );
+  const detailAssignment =
+    assignments.find((assignment) => assignment.id === detailAssignmentId) ?? null;
 
   const create = () => {
     void createDraft({
@@ -415,6 +484,14 @@ export function SchedulerPage() {
             Week {isoWeekNumber(new Date(`${weekStart}T00:00:00.000Z`))} · {weekStart}–{week[6]}
           </p>
         </div>
+        <LocationCalendarSelector
+          locations={locationsQuery.data?.locations ?? []}
+          calendars={calendarsQuery.data?.calendars ?? []}
+          locationId={locationId}
+          calendarId={calendarId}
+          onLocationChange={setLocationId}
+          onCalendarChange={setCalendarId}
+        />
         <div className="flex items-center gap-2">
           <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => setWeekStart(toDateOnly(addDays(new Date(`${weekStart}T00:00:00.000Z`), -7)))}>
             Previous
@@ -427,6 +504,46 @@ export function SchedulerPage() {
           </button>
         </div>
       </header>
+      {!offline.online && (
+        <div className="rounded bg-amber-50 p-3 text-sm text-amber-800">
+          Offline mode: changes are stored locally and will be sent when the connection returns.
+        </div>
+      )}
+      {offline.pending > 0 && (
+        <div className="flex items-center justify-between rounded bg-blue-50 p-3 text-sm text-blue-800">
+          <span>
+            {offline.pending} unsynchronized change{offline.pending === 1 ? "" : "s"}
+            {offline.syncing ? " · syncing…" : ""}
+          </span>
+          <button type="button" className="text-xs underline" onClick={() => void offline.flush()}>
+            Sync now
+          </button>
+        </div>
+      )}
+      {offline.failures.length > 0 && (
+        <div className="rounded bg-red-50 p-3 text-sm text-red-700">
+          <strong>Some offline changes were rejected by the server</strong>
+          <ul className="mt-1 list-disc pl-5">
+            {offline.failures.map((failure) => (
+              <li key={failure.mutation.id}>
+                {failure.mutation.name}: {failure.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {realtime.remoteUpdate && (
+        <div className="flex items-center justify-between rounded bg-indigo-50 p-3 text-sm text-indigo-800">
+          <span>This week was edited by another user ({realtime.remoteUpdate.kind}).</span>
+          <button
+            type="button"
+            className="text-xs underline"
+            onClick={realtime.dismissRemoteUpdate}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {error && <div className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {warnings.length > 0 && (
         <div className="rounded bg-amber-50 p-3 text-sm text-amber-800">
@@ -487,18 +604,57 @@ export function SchedulerPage() {
               </button>
             ))}
           </nav>
+          {canEdit && (
+            <BulkActionPanel
+              organizationId={organizationId}
+              selected={selectedAssignments}
+              employees={employees}
+              weekDates={week}
+              onClearSelection={() => setSelectedIds([])}
+              onChanged={refreshSchedule}
+            />
+          )}
           <DndContext
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
+            <ShiftInteractionProvider value={interaction}>
             {view === "calendar" && <CalendarView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {view === "grid" && <WeekGridView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {view === "employees" && <EmployeeView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {view === "roles" && <RoleView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {canEdit && <EmployeePalette employees={employees} canEdit={canEdit} />}
+            </ShiftInteractionProvider>
           </DndContext>
+          {detailAssignment && (
+            <ShiftDetailPanel
+              organizationId={organizationId}
+              assignment={detailAssignment}
+              employees={employees}
+              canUploadAttachments={canEdit}
+              canRequestSwap
+              onClose={() => setDetailAssignmentId(null)}
+            />
+          )}
+          {canManage && (
+            <TemplatePanel
+              organizationId={organizationId}
+              weekStartDate={dateTime(weekStart)}
+              scheduleId={schedule.id}
+              locationId={locationId}
+              calendarId={calendarId}
+              shiftTemplates={shiftTemplates}
+              roles={roles}
+              onGenerated={refreshSchedule}
+            />
+          )}
+          <SwapQueuePanel
+            organizationId={organizationId}
+            canApprove={canManage}
+            onChanged={refreshSchedule}
+          />
           {canSeeHistory && schedule && (
             <div className="mt-6">
               <ScheduleHistoryPanel

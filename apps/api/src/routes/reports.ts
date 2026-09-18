@@ -61,6 +61,7 @@ export function createReportsRouter(): Router {
           employeeId: query.employeeId,
           departmentId: query.departmentId,
           roleId: query.roleId,
+          locationId: query.locationId,
           includeDrafts,
         },
       });

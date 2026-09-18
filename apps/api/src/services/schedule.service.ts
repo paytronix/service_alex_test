@@ -1,19 +1,39 @@
 import { ScheduleStatus } from "@prisma/client";
-import { addDays, startOfWeek, toDateOnly } from "@shiftflow/shared";
+import { addDays, ScheduleUpdateKind, startOfWeek, toDateOnly } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
 import { eventBus } from "../events";
 import { AuditService } from "./audit.service";
+import { realtimeService } from "./realtime.service";
 import { ScheduleValidationService } from "./schedule-validation.service";
 
 const auditService = new AuditService();
 const validationService = new ScheduleValidationService();
 
+/** Optional multi-location / multi-calendar scope for schedule lookups. */
+export interface ScheduleScope {
+  locationId?: string | null;
+  calendarId?: string | null;
+}
+
+function scopeWhere(scope: ScheduleScope = {}) {
+  return {
+    ...(scope.locationId !== undefined && { locationId: scope.locationId }),
+    ...(scope.calendarId !== undefined && { calendarId: scope.calendarId }),
+  };
+}
+
 export class ScheduleService {
-  async getByWeek(organizationId: string, weekStartDate: Date, includeDrafts = true) {
+  async getByWeek(
+    organizationId: string,
+    weekStartDate: Date,
+    includeDrafts = true,
+    scope: ScheduleScope = {},
+  ) {
     return prisma.schedule.findFirst({
       where: {
         organizationId,
         weekStartDate: startOfWeek(weekStartDate),
+        ...scopeWhere(scope),
         ...(includeDrafts ? {} : { status: ScheduleStatus.PUBLISHED }),
       },
       include: { assignments: true, requirements: true },
@@ -37,10 +57,12 @@ export class ScheduleService {
     skip?: number,
     take?: number,
     includeDrafts = true,
+    scope: ScheduleScope = {},
   ) {
     return prisma.schedule.findMany({
       where: {
         organizationId,
+        ...scopeWhere(scope),
         ...(status ? { status } : {}),
         ...(includeDrafts ? {} : { status: ScheduleStatus.PUBLISHED }),
       },
@@ -51,16 +73,23 @@ export class ScheduleService {
     });
   }
 
-  async createDraft(organizationId: string, userId: string, weekStartDate: Date) {
+  async createDraft(
+    organizationId: string,
+    userId: string,
+    weekStartDate: Date,
+    scope: ScheduleScope = {},
+  ) {
     const normalized = startOfWeek(weekStartDate);
-    const existing = await prisma.schedule.findUnique({
-      where: { organizationId_weekStartDate: { organizationId, weekStartDate: normalized } },
+    const locationId = scope.locationId ?? null;
+    const calendarId = scope.calendarId ?? null;
+    const existing = await prisma.schedule.findFirst({
+      where: { organizationId, weekStartDate: normalized, locationId, calendarId },
       include: { assignments: true, requirements: true },
     });
     if (existing) return existing;
 
     const schedule = await prisma.schedule.create({
-      data: { organizationId, weekStartDate: normalized },
+      data: { organizationId, weekStartDate: normalized, locationId, calendarId },
       include: { assignments: true, requirements: true },
     });
     await auditService.log({
@@ -69,7 +98,7 @@ export class ScheduleService {
       action: "SCHEDULE_CREATED",
       entity: "Schedule",
       entityId: schedule.id,
-      meta: { weekStartDate: toDateOnly(normalized) },
+      meta: { weekStartDate: toDateOnly(normalized), locationId, calendarId },
     });
     return schedule;
   }
@@ -140,6 +169,13 @@ export class ScheduleService {
       startDate: toDateOnly(schedule.weekStartDate),
       endDate: toDateOnly(addDays(schedule.weekStartDate, 6)),
       employeeIds: [...new Set(snapshot.map((assignment) => assignment.employeeId))],
+    });
+    await realtimeService.publishScheduleUpdate({
+      organizationId,
+      scheduleId: id,
+      kind: ScheduleUpdateKind.SCHEDULE_PUBLISHED,
+      assignmentIds: snapshot.map((assignment) => assignment.id),
+      actorId: userId,
     });
     return result;
   }

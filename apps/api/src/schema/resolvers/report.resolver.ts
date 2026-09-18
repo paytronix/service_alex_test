@@ -61,6 +61,7 @@ builder.queryField("workHoursReport", (t) =>
       employeeId: t.arg.string(),
       departmentId: t.arg.string(),
       roleId: t.arg.string(),
+      locationId: t.arg.string(),
       includeDrafts: t.arg.boolean(),
     },
     resolve: async (_root, args, ctx) => {
@@ -73,6 +74,7 @@ builder.queryField("workHoursReport", (t) =>
           employeeId,
           departmentId: args.departmentId,
           roleId: args.roleId,
+          locationId: args.locationId,
           includeDrafts: args.includeDrafts ?? false,
         },
         args.granularity ?? ReportGranularity.WEEK,
@@ -91,6 +93,7 @@ builder.queryField("employeeWorkloadReport", (t) =>
       to: t.arg.string({ required: true }),
       departmentId: t.arg.string(),
       roleId: t.arg.string(),
+      locationId: t.arg.string(),
       includeDrafts: t.arg.boolean(),
     },
     resolve: async (_root, args, ctx) => {
@@ -100,6 +103,7 @@ builder.queryField("employeeWorkloadReport", (t) =>
         to: args.to,
         departmentId: args.departmentId,
         roleId: args.roleId,
+        locationId: args.locationId,
         includeDrafts: args.includeDrafts ?? false,
       });
     },
@@ -115,6 +119,7 @@ builder.queryField("scheduleFillRateReport", (t) =>
       weekStartDate: t.arg.string(),
       from: t.arg.string(),
       to: t.arg.string(),
+      locationId: t.arg.string(),
       includeDrafts: t.arg.boolean(),
     },
     resolve: async (_root, args, ctx) => {
@@ -129,6 +134,7 @@ builder.queryField("scheduleFillRateReport", (t) =>
       return analyticsService.scheduleFillRate(args.organizationId, {
         from,
         to,
+        locationId: args.locationId,
         includeDrafts: args.includeDrafts ?? false,
       });
     },
@@ -161,6 +167,7 @@ builder.queryField("exportReport", (t) =>
       employeeId: t.arg.string(),
       departmentId: t.arg.string(),
       roleId: t.arg.string(),
+      locationId: t.arg.string(),
       includeDrafts: t.arg.boolean(),
       weekStartDate: t.arg.string(),
     },
@@ -189,6 +196,7 @@ builder.queryField("exportReport", (t) =>
           employeeId: args.employeeId,
           departmentId: args.departmentId,
           roleId: args.roleId,
+          locationId: args.locationId,
           includeDrafts: args.includeDrafts ?? false,
         },
       });

@@ -2,12 +2,14 @@ import { ScheduleChangeType, ScheduleStatus } from "@prisma/client";
 import {
   CandidateAssignment,
   ScheduleChangeType as SharedScheduleChangeType,
+  ScheduleUpdateKind,
   toDateOnly,
   Violation,
 } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
 import { eventBus } from "../events";
 import { AuditService } from "./audit.service";
+import { realtimeService } from "./realtime.service";
 import { ScheduleHistoryService } from "./schedule-history.service";
 import { ScheduleValidationService } from "./schedule-validation.service";
 
@@ -117,6 +119,22 @@ export class ShiftAssignmentService {
       employeeId: assignment.employeeId,
       previousEmployeeId: null,
     });
+    await realtimeService.publishScheduleUpdate({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      kind: ScheduleUpdateKind.ASSIGNMENT_CREATED,
+      assignmentIds: [assignment.id],
+      actorId: userId,
+    });
+    await realtimeService.publishAssignmentChange({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: assignment.id,
+      kind: ScheduleUpdateKind.ASSIGNMENT_CREATED,
+      employeeId: assignment.employeeId,
+      date: assignment.date,
+      actorId: userId,
+    });
     return { assignment: await this.getById(organizationId, assignment.id), violations: validation.violations };
   }
 
@@ -207,6 +225,22 @@ export class ShiftAssignmentService {
       employeeId: null,
       previousEmployeeId: assignment.employeeId,
     });
+    await realtimeService.publishScheduleUpdate({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      kind: ScheduleUpdateKind.ASSIGNMENT_REMOVED,
+      assignmentIds: [id],
+      actorId: userId,
+    });
+    await realtimeService.publishAssignmentChange({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: id,
+      kind: ScheduleUpdateKind.ASSIGNMENT_REMOVED,
+      employeeId: assignment.employeeId,
+      date: assignment.date,
+      actorId: userId,
+    });
     return true;
   }
 
@@ -280,6 +314,26 @@ export class ShiftAssignmentService {
       changeType: changeType as SharedScheduleChangeType,
       employeeId: assignment.employeeId,
       previousEmployeeId: existing.employeeId,
+    });
+    const updateKind =
+      action === "SHIFT_MOVED"
+        ? ScheduleUpdateKind.ASSIGNMENT_MOVED
+        : ScheduleUpdateKind.ASSIGNMENT_UPDATED;
+    await realtimeService.publishScheduleUpdate({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      kind: updateKind,
+      assignmentIds: [id],
+      actorId: userId,
+    });
+    await realtimeService.publishAssignmentChange({
+      organizationId,
+      scheduleId: assignment.scheduleId,
+      assignmentId: id,
+      kind: updateKind,
+      employeeId: assignment.employeeId,
+      date: assignment.date,
+      actorId: userId,
     });
     return { assignment: await this.getById(organizationId, id), violations: validation.violations };
   }

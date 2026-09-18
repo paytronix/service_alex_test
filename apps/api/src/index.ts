@@ -16,6 +16,7 @@ import {
 } from "./middleware/auth";
 import "./events";
 import { createReportsRouter } from "./routes/reports";
+import { createAttachmentsRouter } from "./routes/attachments";
 
 async function main() {
   const app = express();
@@ -62,6 +63,8 @@ async function main() {
     "/api/reports",
     createReportsRouter(),
   );
+
+  app.use("/api/attachments", createAttachmentsRouter());
 
   app.use(
     "/graphql",

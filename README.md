@@ -235,17 +235,72 @@ crossing midnight use the shared `paidMinutes` helper. All assignment statuses a
 Exports are available as CSV, Excel, and PDF files. The web application uses `recharts` for report
 charts; Excel files are generated in-house without a dependency, and PDF files use `pdfkit`.
 
-### Environment variables (Epic 7)
+## Features (Epic 9 — Advanced features)
+
+- [x] Week templates and recurring shift rules with `generateScheduleFromTemplate` and
+  `saveWeekAsTemplate`, validated by the Epic 6 conflict engine
+- [x] Bulk shift editing (`bulkAssignShifts`, `bulkRemoveShifts`, `bulkCopyShifts`,
+  `bulkMoveShifts`) with transactional writes and per-item results
+- [x] Shift swaps: create → accept by the target employee → approve or reject by a manager, with
+  conflict validation, reassignment, notifications and audit records
+- [x] Shift comments and file attachments (`POST /api/attachments`, `GET /api/attachments/:id`)
+- [x] Multiple locations and calendars with optional `locationId`/`calendarId` filters on
+  schedules and employees
+- [x] Realtime `scheduleUpdated` and `shiftAssignmentChanged` subscriptions over `graphql-ws`
+- [x] Offline draft queue in the scheduler with an unsynchronized-changes indicator
+
+### GraphQL operations
+
+Queries: `locations`, `calendars`, `weekTemplates`, `recurringShiftRules`, `shiftSwapRequests`,
+`shiftComments`, `attachments`.
+
+Mutations: `createLocation`/`updateLocation`/`deleteLocation`, `createCalendar`/`updateCalendar`/
+`deleteCalendar`, `createWeekTemplate`/`updateWeekTemplate`/`deleteWeekTemplate`,
+`createRecurringShiftRule`/`updateRecurringShiftRule`/`deleteRecurringShiftRule`,
+`generateScheduleFromTemplate`, `saveWeekAsTemplate`, `bulkAssignShifts`, `bulkRemoveShifts`,
+`bulkCopyShifts`, `bulkMoveShifts`, `createShiftSwapRequest`, `acceptShiftSwap`,
+`approveShiftSwap`, `rejectShiftSwap`, `cancelShiftSwap`, `createShiftComment`,
+`updateShiftComment`, `deleteShiftComment`, `deleteAttachment`.
+
+Subscriptions: `scheduleUpdated(organizationId, scheduleId?, weekStartDate?, locationId?,
+calendarId?)` and `shiftAssignmentChanged(organizationId, scheduleId?)`. Events are published on
+assignment changes, bulk operations, swap approvals, template generation and publication. PubSub is
+in-memory by default and switches to Redis when `REDIS_URL` is set.
+
+RBAC: Owners and Managers manage locations, calendars, templates, rules, bulk operations and swap
+approvals; Supervisors may upload attachments; every organization member may comment; employees may
+request swaps for their own shifts and accept swaps offered to them.
+
+### Attachments
+
+Uploads are multipart `POST /api/attachments` requests with `organizationId`, `entityType`,
+`entityId` and `file` fields, authenticated with a JWT and restricted to Owners, Managers and
+Supervisors. Files are validated against an allowed MIME-type list and a maximum size, then stored
+under `ATTACHMENT_STORAGE_DIR` (a Docker volume in `docker-compose.yml`). GraphQL stores only
+metadata; downloads stream through `GET /api/attachments/:id?organizationId=…`.
+
+### Offline drafts
+
+While the browser is offline, scheduler assign/move/copy/remove mutations are queued in
+`localStorage` and replayed when the connection returns; the page shows the offline state and the
+number of unsynchronized changes. Conflicts are resolved server-wins: rejected changes are listed
+for the user and are not retried. Merging concurrent edits of the same assignment is out of scope.
+
+### Environment variables (Epics 7 and 9)
 
 | Variable | Scope | Purpose |
 |---|---|---|
 | `VITE_WS_URL` | web | GraphQL WebSocket endpoint; derived from `VITE_API_URL` when unset |
+| `VITE_REST_URL` | web | Base URL for REST endpoints (attachments); derived from `VITE_API_URL` when unset |
+| `REDIS_URL` | api | Redis PubSub for subscriptions; in-memory PubSub is used when unset |
+| `ATTACHMENT_STORAGE_DIR` | api | Directory for uploaded attachments |
 
 ### Seed data
 
 `pnpm --filter @shiftflow/api db:seed` creates a demo organization with Owner/Manager/Supervisor/Employee
 accounts, catalogs, employee profiles, availability, a pending leave request, demo in-app
-notifications, a shift change history entry and an audit record. The demo password is
+notifications, a shift change history entry, an audit record, two locations, Hall and Kitchen
+calendars and a Summer week template with recurring rules. The demo password is
 printed by the script — it is for local development only.
 
 ## License

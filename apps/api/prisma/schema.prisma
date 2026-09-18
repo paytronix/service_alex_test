@@ -27,6 +27,9 @@ model User {
 
   memberships      Membership[]
   auditLogs        AuditLog[]     @relation("AuditUser")
+  shiftComments    ShiftComment[] @relation("ShiftCommentAuthor")
+  uploadedAttachments Attachment[] @relation("AttachmentUploader")
+  reviewedSwaps    ShiftSwapRequest[] @relation("ShiftSwapReviewer")
   employeeProfiles Employee[]
   reviewedLeaves   LeaveRequest[] @relation("LeaveReviewer")
   publishedSchedules Schedule[] @relation("SchedulePublisher")
@@ -70,6 +73,13 @@ model Organization {
   shiftRequirements ShiftRequirement[]
   scheduleVersions ScheduleVersion[]
   shiftHistory     ShiftAssignmentHistory[]
+  locations        Location[]
+  calendars        Calendar[]
+  weekTemplates    WeekTemplate[]
+  recurringRules   RecurringShiftRule[]
+  shiftSwapRequests ShiftSwapRequest[]
+  shiftComments    ShiftComment[]
+  attachments      Attachment[]
 
   @@map("organizations")
 }
@@ -149,6 +159,7 @@ model Role {
   shiftTemplates ShiftTemplate[]
   shiftAssignments ShiftAssignment[]
   shiftRequirements ShiftRequirement[]
+  recurringRules RecurringShiftRule[]
 
   @@unique([name, organizationId])
   @@map("roles")
@@ -197,6 +208,7 @@ model Employee {
   organizationId       String
   departmentId         String?
   roleId               String?
+  locationId           String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -204,10 +216,14 @@ model Employee {
   user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   department       Department?       @relation(fields: [departmentId], references: [id])
   role             Role?             @relation(fields: [roleId], references: [id])
+  location         Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
   skills           EmployeeSkill[]
   availabilities   Availability[]
   shiftAssignments ShiftAssignment[]
   leaveRequests    LeaveRequest[]
+  recurringRules   RecurringShiftRule[]
+  requestedSwaps   ShiftSwapRequest[] @relation("ShiftSwapRequester")
+  targetedSwaps    ShiftSwapRequest[] @relation("ShiftSwapTarget")
 
   @@unique([email, organizationId])
   @@unique([userId, organizationId])
@@ -277,6 +293,7 @@ model ShiftTemplate {
   requiredSkills Skill[]      @relation("ShiftTemplateSkills")
   assignments    ShiftAssignment[]
   requirements   ShiftRequirement[]
+  recurringRules RecurringShiftRule[]
 
   @@unique([name, organizationId])
   @@map("shift_templates")
@@ -293,6 +310,8 @@ enum ScheduleStatus {
 model Schedule {
   id             String         @id @default(uuid())
   organizationId String
+  locationId     String?
+  calendarId     String?
   weekStartDate  DateTime       @db.Date
   status         ScheduleStatus @default(DRAFT)
   version        Int            @default(0)
@@ -302,14 +321,18 @@ model Schedule {
   updatedAt      DateTime       @updatedAt
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  calendar     Calendar?         @relation(fields: [calendarId], references: [id], onDelete: SetNull)
   assignments  ShiftAssignment[]
   requirements ShiftRequirement[]
   versions     ScheduleVersion[]
   history      ShiftAssignmentHistory[]
+  comments     ShiftComment[]
   publishedBy  User?            @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
-  @@unique([organizationId, weekStartDate])
+  @@unique([organizationId, weekStartDate, locationId, calendarId])
   @@index([organizationId, status])
+  @@index([organizationId, locationId])
   @@map("schedules")
 }
 
@@ -337,6 +360,7 @@ model ShiftAssignment {
   breakMinutes    Int                   @default(0)
   status          ShiftAssignmentStatus @default(ASSIGNED)
   notes           String?
+  calendarId      String?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
@@ -345,6 +369,9 @@ model ShiftAssignment {
   employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
   role          Role?         @relation(fields: [roleId], references: [id])
+  calendar      Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  comments      ShiftComment[]
+  swapRequests  ShiftSwapRequest[]
 
   @@index([scheduleId])
   @@index([employeeId, date])
@@ -357,6 +384,7 @@ model ShiftRequirement {
   id              String   @id @default(uuid())
   organizationId  String
   scheduleId      String
+  locationId      String?
   date            DateTime @db.Date
   shiftTemplateId String
   roleId          String
@@ -368,6 +396,7 @@ model ShiftRequirement {
   schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
   role          Role           @relation(fields: [roleId], references: [id])
+  location      Location?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   @@unique([scheduleId, date, shiftTemplateId, roleId])
   @@index([organizationId, date])
@@ -471,6 +500,11 @@ enum NotificationType {
   REQUEST_APPROVED
   REQUEST_REJECTED
   SCHEDULE_PUBLISHED
+  SWAP_REQUESTED
+  SWAP_ACCEPTED
+  SWAP_APPROVED
+  SWAP_REJECTED
+  SHIFT_COMMENT_ADDED
 }
 
 enum NotificationChannel {
@@ -528,4 +562,184 @@ model AuditLog {
   @@index([organizationId, action])
   @@index([entity, entityId])
   @@map("audit_logs")
+}
+
+// ─── Locations (multi-branch) ────────────────────────────────
+
+model Location {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  timezone       String   @default("UTC")
+  address        String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendars    Calendar[]
+  schedules    Schedule[]
+  employees    Employee[]
+  requirements ShiftRequirement[]
+  weekTemplates WeekTemplate[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@map("locations")
+}
+
+// ─── Calendars (Kitchen / Hall / Bar …) ──────────────────────
+
+model Calendar {
+  id             String   @id @default(uuid())
+  organizationId String
+  locationId     String?
+  name           String
+  color          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  schedules    Schedule[]
+  assignments  ShiftAssignment[]
+  weekTemplates WeekTemplate[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId, locationId])
+  @@map("calendars")
+}
+
+// ─── Week templates & recurring rules ────────────────────────
+
+model WeekTemplate {
+  id             String   @id @default(uuid())
+  organizationId String
+  locationId     String?
+  calendarId     String?
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location     Location?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  calendar     Calendar?            @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  rules        RecurringShiftRule[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@map("week_templates")
+}
+
+model RecurringShiftRule {
+  id              String    @id @default(uuid())
+  organizationId  String
+  weekTemplateId  String?
+  dayOfWeek       Int
+  shiftTemplateId String
+  roleId          String?
+  employeeId      String?
+  requiredCount   Int       @default(1)
+  effectiveFrom   DateTime? @db.Date
+  effectiveTo     DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  weekTemplate  WeekTemplate? @relation(fields: [weekTemplateId], references: [id], onDelete: Cascade)
+  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+  role          Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  employee      Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, dayOfWeek])
+  @@index([weekTemplateId])
+  @@map("recurring_shift_rules")
+}
+
+// ─── Shift swaps ─────────────────────────────────────────────
+
+enum ShiftSwapStatus {
+  PENDING
+  ACCEPTED_BY_TARGET
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ShiftSwapRequest {
+  id               String          @id @default(uuid())
+  organizationId   String
+  assignmentId     String
+  requestedById    String
+  targetEmployeeId String
+  status           ShiftSwapStatus @default(PENDING)
+  message          String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  respondedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignment     ShiftAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  requestedBy    Employee        @relation("ShiftSwapRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  targetEmployee Employee        @relation("ShiftSwapTarget", fields: [targetEmployeeId], references: [id], onDelete: Cascade)
+  reviewedBy     User?           @relation("ShiftSwapReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([assignmentId])
+  @@index([targetEmployeeId, status])
+  @@map("shift_swap_requests")
+}
+
+// ─── Shift comments ──────────────────────────────────────────
+
+model ShiftComment {
+  id             String   @id @default(uuid())
+  organizationId String
+  assignmentId   String?
+  scheduleId     String?
+  authorId       String
+  text           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignment   ShiftAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  schedule     Schedule?        @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  author       User             @relation("ShiftCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([assignmentId, createdAt])
+  @@index([scheduleId, createdAt])
+  @@map("shift_comments")
+}
+
+// ─── Attachments ─────────────────────────────────────────────
+
+enum AttachmentEntityType {
+  SHIFT_ASSIGNMENT
+  SCHEDULE
+  EMPLOYEE
+}
+
+model Attachment {
+  id             String               @id @default(uuid())
+  organizationId String
+  entityType     AttachmentEntityType
+  entityId       String
+  fileName       String
+  storageKey     String
+  url            String?
+  mimeType       String
+  size           Int
+  uploadedById   String?
+  createdAt      DateTime             @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId])
+  @@map("attachments")
 }

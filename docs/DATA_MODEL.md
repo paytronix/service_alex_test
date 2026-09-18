@@ -354,3 +354,31 @@ operation is available for API clients that need base64 file contents.
 | `AuditLog` | `organizationId`, `userId` (actor), `action`, `entity`, `entityId`, `meta` (JSON), `createdAt` |
 | `ScheduleVersion` | `organizationId`, `scheduleId`, `version`, `snapshot` (JSON assignments), `publishedById`, `publishedAt` |
 | `ShiftAssignmentHistory` | `organizationId`, `scheduleId`, `assignmentId`, `changeType`, `date`, `previousEmployeeId`, `newEmployeeId`, `changedById`, `metadata`, `changedAt` |
+
+### ShiftSwapStatus
+`PENDING` | `ACCEPTED_BY_TARGET` | `APPROVED` | `REJECTED` | `CANCELLED`
+
+### AttachmentEntityType
+`SHIFT_ASSIGNMENT` | `SCHEDULE` | `EMPLOYEE`
+
+## Advanced feature models (Epic 9)
+
+| Model | Key fields |
+|---|---|
+| `Location` | `organizationId`, `name`, `timezone`, `address`, `isDefault` |
+| `Calendar` | `organizationId`, `locationId?`, `name`, `color` |
+| `WeekTemplate` | `organizationId`, `locationId?`, `calendarId?`, `name`, `description` |
+| `RecurringShiftRule` | `organizationId`, `weekTemplateId?`, `dayOfWeek`, `shiftTemplateId`, `roleId?`, `employeeId?`, `requiredCount`, `effectiveFrom?`, `effectiveTo?` |
+| `ShiftSwapRequest` | `organizationId`, `assignmentId`, `requestedById`, `targetEmployeeId`, `status`, `message`, `reviewedById?`, `respondedAt?`, `reviewedAt?` |
+| `ShiftComment` | `organizationId`, `assignmentId?`, `scheduleId?`, `authorId`, `text` |
+| `Attachment` | `organizationId`, `entityType`, `entityId`, `fileName`, `storageKey`, `url?`, `mimeType`, `size`, `uploadedById?` |
+
+`Schedule` and `ShiftAssignment` carry optional `calendarId`; `Schedule`, `Employee` and
+`ShiftRequirement` carry optional `locationId`. Organizations without explicit locations or
+calendars keep working because every one of these columns is nullable.
+
+`NotificationType` additionally includes `SWAP_REQUESTED`, `SWAP_ACCEPTED`, `SWAP_APPROVED`,
+`SWAP_REJECTED` and `SHIFT_COMMENT_ADDED`.
+
+Attachment files live outside the database under `ATTACHMENT_STORAGE_DIR`; Redis (`REDIS_URL`) is
+optional and only used as the subscription PubSub transport.

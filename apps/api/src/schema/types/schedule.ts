@@ -189,6 +189,8 @@ builder.objectType(ScheduleType, {
   fields: (t) => ({
     id: t.exposeString("id"),
     organizationId: t.exposeString("organizationId"),
+    locationId: t.exposeString("locationId", { nullable: true }),
+    calendarId: t.exposeString("calendarId", { nullable: true }),
     weekStartDate: t.expose("weekStartDate", { type: "DateTime" }),
     status: t.field({ type: ScheduleStatusEnum, resolve: (parent) => parent.status }),
     version: t.exposeInt("version"),

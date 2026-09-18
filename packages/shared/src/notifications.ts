@@ -4,6 +4,11 @@ export enum NotificationType {
   REQUEST_APPROVED = "REQUEST_APPROVED",
   REQUEST_REJECTED = "REQUEST_REJECTED",
   SCHEDULE_PUBLISHED = "SCHEDULE_PUBLISHED",
+  SWAP_REQUESTED = "SWAP_REQUESTED",
+  SWAP_ACCEPTED = "SWAP_ACCEPTED",
+  SWAP_APPROVED = "SWAP_APPROVED",
+  SWAP_REJECTED = "SWAP_REJECTED",
+  SHIFT_COMMENT_ADDED = "SHIFT_COMMENT_ADDED",
 }
 
 export enum NotificationChannel {
@@ -40,6 +45,24 @@ export enum AuditAction {
   LEAVE_REQUEST_APPROVED = "LEAVE_REQUEST_APPROVED",
   LEAVE_REQUEST_REJECTED = "LEAVE_REQUEST_REJECTED",
   NOTIFICATION_SENT = "NOTIFICATION_SENT",
+  SHIFTS_BULK_UPDATED = "SHIFTS_BULK_UPDATED",
+  SCHEDULE_GENERATED_FROM_TEMPLATE = "SCHEDULE_GENERATED_FROM_TEMPLATE",
+  WEEK_TEMPLATE_CREATED = "WEEK_TEMPLATE_CREATED",
+  SWAP_REQUEST_CREATED = "SWAP_REQUEST_CREATED",
+  SWAP_REQUEST_ACCEPTED = "SWAP_REQUEST_ACCEPTED",
+  SWAP_REQUEST_APPROVED = "SWAP_REQUEST_APPROVED",
+  SWAP_REQUEST_REJECTED = "SWAP_REQUEST_REJECTED",
+  SWAP_REQUEST_CANCELLED = "SWAP_REQUEST_CANCELLED",
+  SHIFT_COMMENT_CREATED = "SHIFT_COMMENT_CREATED",
+  SHIFT_COMMENT_DELETED = "SHIFT_COMMENT_DELETED",
+  ATTACHMENT_UPLOADED = "ATTACHMENT_UPLOADED",
+  ATTACHMENT_DELETED = "ATTACHMENT_DELETED",
+  LOCATION_CREATED = "LOCATION_CREATED",
+  LOCATION_UPDATED = "LOCATION_UPDATED",
+  LOCATION_DELETED = "LOCATION_DELETED",
+  CALENDAR_CREATED = "CALENDAR_CREATED",
+  CALENDAR_UPDATED = "CALENDAR_UPDATED",
+  CALENDAR_DELETED = "CALENDAR_DELETED",
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -48,6 +71,11 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.REQUEST_APPROVED]: "Request approved",
   [NotificationType.REQUEST_REJECTED]: "Request rejected",
   [NotificationType.SCHEDULE_PUBLISHED]: "Schedule published",
+  [NotificationType.SWAP_REQUESTED]: "Shift swap requested",
+  [NotificationType.SWAP_ACCEPTED]: "Shift swap accepted",
+  [NotificationType.SWAP_APPROVED]: "Shift swap approved",
+  [NotificationType.SWAP_REJECTED]: "Shift swap rejected",
+  [NotificationType.SHIFT_COMMENT_ADDED]: "New shift comment",
 };
 
 export interface NotificationDto {
@@ -103,6 +131,11 @@ export const DomainEventName = {
   LeaveRequestApproved: "leaveRequest.approved",
   LeaveRequestRejected: "leaveRequest.rejected",
   SchedulePublished: "schedule.published",
+  ShiftSwapRequested: "shiftSwap.requested",
+  ShiftSwapAccepted: "shiftSwap.accepted",
+  ShiftSwapApproved: "shiftSwap.approved",
+  ShiftSwapRejected: "shiftSwap.rejected",
+  ShiftCommentAdded: "shiftComment.added",
 } as const;
 
 export type DomainEventName = (typeof DomainEventName)[keyof typeof DomainEventName];
@@ -145,10 +178,40 @@ export interface SchedulePublishedEventPayload {
   employeeIds: string[];
 }
 
+export interface ShiftSwapEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  swapRequestId: string;
+  assignmentId: string;
+  scheduleId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  requestedById: string;
+  targetEmployeeId: string;
+  status: string;
+  message?: string | null;
+}
+
+export interface ShiftCommentEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  commentId: string;
+  assignmentId?: string | null;
+  scheduleId?: string | null;
+  text: string;
+  recipientEmployeeIds: string[];
+}
+
 export interface DomainEventPayloads {
   "shift.assigned": ShiftEventPayload;
   "shift.changed": ShiftEventPayload;
   "leaveRequest.approved": LeaveRequestEventPayload;
   "leaveRequest.rejected": LeaveRequestEventPayload;
   "schedule.published": SchedulePublishedEventPayload;
+  "shiftSwap.requested": ShiftSwapEventPayload;
+  "shiftSwap.accepted": ShiftSwapEventPayload;
+  "shiftSwap.approved": ShiftSwapEventPayload;
+  "shiftSwap.rejected": ShiftSwapEventPayload;
+  "shiftComment.added": ShiftCommentEventPayload;
 }

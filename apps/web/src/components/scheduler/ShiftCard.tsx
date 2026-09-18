@@ -1,4 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
+import { useShiftInteraction } from "./ShiftInteractionContext";
 import type { SchedulerAssignment, SchedulerViolation } from "./types";
 
 interface ShiftCardProps {
@@ -36,16 +37,39 @@ export function ShiftCard({ assignment, violations, canEdit, onRemove }: ShiftCa
     data: { type: "assignment", assignment },
   });
   const messages = violations.map((violation) => violation.message).join(" | ");
+  const interaction = useShiftInteraction();
+  const selected = interaction.selectedIds.includes(assignment.id);
   return (
     <article
       ref={draggable.setNodeRef}
       title={messages || `${assignment.effectiveStartTime}–${assignment.effectiveEndTime}`}
       className={`relative rounded border border-l-4 bg-white p-2 text-left shadow-sm ${
         draggable.isDragging ? "opacity-50" : ""
-      } ${roleAccentClass(assignment.role?.color ?? null)} ${violationClass(violations)}`}
+      } ${selected ? "outline outline-2 outline-primary-500" : ""} ${roleAccentClass(
+        assignment.role?.color ?? null,
+      )} ${violationClass(violations)}`}
       {...draggable.attributes}
       {...draggable.listeners}
     >
+      <div className="flex items-center gap-2">
+        {canEdit && (
+          <input
+            type="checkbox"
+            aria-label={`Select shift for ${assignment.employee.firstName} ${assignment.employee.lastName}`}
+            checked={selected}
+            onChange={() => interaction.toggleSelected(assignment.id)}
+            onPointerDown={(event) => event.stopPropagation()}
+          />
+        )}
+        <button
+          type="button"
+          className="text-xs text-primary-700 underline"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => interaction.openDetails(assignment)}
+        >
+          Details
+        </button>
+      </div>
       <p className="truncate text-xs font-semibold">
         {assignment.employee.firstName} {assignment.employee.lastName}
       </p>

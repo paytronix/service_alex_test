@@ -37,6 +37,10 @@ export function useAuth() {
   return ctx;
 }
 
+export function useCurrentUser(): User | null {
+  return useContext(AuthContext)?.user ?? null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

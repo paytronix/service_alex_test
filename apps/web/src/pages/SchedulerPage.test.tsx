@@ -4,11 +4,14 @@ import { describe, expect, it } from "vitest";
 import { startOfWeek, toDateOnly } from "@shiftflow/shared";
 import { SchedulerPage } from "./SchedulerPage";
 import {
+  CALENDARS_QUERY,
   EMPLOYEES_QUERY,
+  LOCATIONS_QUERY,
   MY_ORGANIZATIONS_QUERY,
   ROLES_QUERY,
   SCHEDULE_COVERAGE_QUERY,
   SCHEDULE_QUERY,
+  SHIFT_SWAP_REQUESTS_QUERY,
   SHIFT_TEMPLATES_QUERY,
 } from "../lib/graphql";
 
@@ -37,13 +40,30 @@ function mocks(role: string, schedule: unknown) {
     {
       request: {
         query: SCHEDULE_QUERY,
-        variables: { organizationId, weekStartDate: `${weekStartDate}T00:00:00.000Z` },
+        variables: {
+          organizationId,
+          weekStartDate: `${weekStartDate}T00:00:00.000Z`,
+          locationId: null,
+          calendarId: null,
+        },
       },
       result: { data: { schedule } },
     },
     {
-      request: { query: EMPLOYEES_QUERY, variables: { organizationId } },
+      request: { query: EMPLOYEES_QUERY, variables: { organizationId, locationId: null } },
       result: { data: { employees: [] } },
+    },
+    {
+      request: { query: LOCATIONS_QUERY, variables: { organizationId } },
+      result: { data: { locations: [] } },
+    },
+    {
+      request: { query: CALENDARS_QUERY, variables: { organizationId, locationId: null } },
+      result: { data: { calendars: [] } },
+    },
+    {
+      request: { query: SHIFT_SWAP_REQUESTS_QUERY, variables: { organizationId } },
+      result: { data: { shiftSwapRequests: [] } },
     },
     {
       request: { query: ROLES_QUERY, variables: { organizationId } },

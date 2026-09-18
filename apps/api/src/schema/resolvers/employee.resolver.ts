@@ -66,6 +66,7 @@ builder.queryField("employees", (t) =>
     args: {
       organizationId: t.arg.string({ required: true }),
       departmentId: t.arg.string({ required: false }),
+      locationId: t.arg.string({ required: false }),
       roleId: t.arg.string({ required: false }),
       status: t.arg({ type: EmployeeStatusEnum, required: false }),
       search: t.arg.string({ required: false }),
@@ -77,6 +78,7 @@ builder.queryField("employees", (t) =>
       await requireMember(ctx, args.organizationId);
       return employeeService.list(args.organizationId, {
         departmentId: args.departmentId ?? undefined,
+        locationId: args.locationId ?? undefined,
         roleId: args.roleId ?? undefined,
         status: args.status ?? undefined,
         search: args.search ?? undefined,

@@ -28,6 +28,7 @@ export interface ReportFilters {
   employeeId?: string | null;
   departmentId?: string | null;
   roleId?: string | null;
+  locationId?: string | null;
   includeDrafts?: boolean;
 }
 
@@ -116,6 +117,7 @@ export class AnalyticsService {
           ...(filters.employeeId ? { id: filters.employeeId } : {}),
           ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
           ...(filters.roleId ? { roleId: filters.roleId } : {}),
+          ...(filters.locationId ? { locationId: filters.locationId } : {}),
         },
         select: {
           id: true,
@@ -182,6 +184,7 @@ export class AnalyticsService {
     const fromDate = dateAtUtc(filters.from);
     const toExclusive = addDays(filters.to, 1);
     const includeDrafts = filters.includeDrafts ?? false;
+    const locationId = filters.locationId ?? null;
     const rows = await prisma.$queryRaw<FillAggregateRow[]>(Prisma.sql`
       WITH req AS (
         SELECT r."date"::date AS date, r."shiftTemplateId" AS shift_template_id, r."roleId" AS role_id,
@@ -191,6 +194,7 @@ export class AnalyticsService {
         WHERE r."organizationId" = ${organizationId}
           AND r."date" >= ${fromDate} AND r."date" < ${toExclusive}
           AND (${includeDrafts} OR s.status = 'PUBLISHED')
+          AND (${locationId}::text IS NULL OR s."locationId" = ${locationId})
         GROUP BY 1, 2, 3
       ), asg AS (
         SELECT a."date"::date AS date, a."shiftTemplateId" AS shift_template_id, a."roleId" AS role_id,
@@ -200,6 +204,7 @@ export class AnalyticsService {
         WHERE a."organizationId" = ${organizationId}
           AND a."date" >= ${fromDate} AND a."date" < ${toExclusive}
           AND (${includeDrafts} OR s.status = 'PUBLISHED')
+          AND (${locationId}::text IS NULL OR s."locationId" = ${locationId})
         GROUP BY 1, 2, 3
       )
       SELECT to_char(req.date, 'YYYY-MM-DD') AS "date", req.shift_template_id AS "shiftTemplateId",
@@ -354,6 +359,7 @@ export class AnalyticsService {
     const employeeId = filters.employeeId ?? null;
     const departmentId = filters.departmentId ?? null;
     const roleId = filters.roleId ?? null;
+    const locationId = filters.locationId ?? null;
     const includeDrafts = filters.includeDrafts ?? false;
     const periodExpression = Prisma.raw(PERIOD_EXPR[granularity]);
     return prisma.$queryRaw<WorkAggregateRow[]>(Prisma.sql`
@@ -375,6 +381,7 @@ export class AnalyticsService {
           AND (${employeeId}::text IS NULL OR a."employeeId" = ${employeeId})
           AND (${departmentId}::text IS NULL OR e."departmentId" = ${departmentId})
           AND (${roleId}::text IS NULL OR e."roleId" = ${roleId})
+          AND (${locationId}::text IS NULL OR s."locationId" = ${locationId})
       ), p AS (
         SELECT employee_id, date,
                GREATEST(

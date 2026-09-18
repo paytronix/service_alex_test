@@ -17,6 +17,16 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: .
@@ -32,8 +42,14 @@ services:
       PORT: "4000"
       NODE_ENV: production
       CORS_ORIGIN: http://localhost:3000
+      REDIS_URL: redis://redis:6379
+      ATTACHMENT_STORAGE_DIR: /data/attachments
+    volumes:
+      - attachments:/data/attachments
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   web:
@@ -47,3 +63,4 @@ services:
 
 volumes:
   pgdata:
+  attachments:

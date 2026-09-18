@@ -822,8 +822,18 @@ const SCHEDULE_FIELDS = `
 `;
 
 export const SCHEDULE_QUERY = gql`
-  query Schedule($organizationId: String!, $weekStartDate: DateTime!) {
-    schedule(organizationId: $organizationId, weekStartDate: $weekStartDate) {
+  query Schedule(
+    $organizationId: String!
+    $weekStartDate: DateTime!
+    $locationId: String
+    $calendarId: String
+  ) {
+    schedule(
+      organizationId: $organizationId
+      weekStartDate: $weekStartDate
+      locationId: $locationId
+      calendarId: $calendarId
+    ) {
       ${SCHEDULE_FIELDS}
     }
   }
@@ -842,8 +852,18 @@ export const SCHEDULE_COVERAGE_QUERY = gql`
 `;
 
 export const CREATE_DRAFT_SCHEDULE_MUTATION = gql`
-  mutation CreateDraftSchedule($organizationId: String!, $weekStartDate: DateTime!) {
-    createDraftSchedule(organizationId: $organizationId, weekStartDate: $weekStartDate) {
+  mutation CreateDraftSchedule(
+    $organizationId: String!
+    $weekStartDate: DateTime!
+    $locationId: String
+    $calendarId: String
+  ) {
+    createDraftSchedule(
+      organizationId: $organizationId
+      weekStartDate: $weekStartDate
+      locationId: $locationId
+      calendarId: $calendarId
+    ) {
       ${SCHEDULE_FIELDS}
     }
   }
@@ -1219,6 +1239,470 @@ export const SCHEDULE_VERSION_DIFF_QUERY = gql`
       date
       previousEmployeeId
       newEmployeeId
+    }
+  }
+`;
+
+// ─── Epic 9: locations & calendars ───────────────────────────
+
+export const LOCATIONS_QUERY = gql`
+  query Locations($organizationId: String!) {
+    locations(organizationId: $organizationId) {
+      id
+      name
+      timezone
+      address
+      isDefault
+    }
+  }
+`;
+
+export const CALENDARS_QUERY = gql`
+  query Calendars($organizationId: String!, $locationId: String) {
+    calendars(organizationId: $organizationId, locationId: $locationId) {
+      id
+      name
+      color
+      locationId
+    }
+  }
+`;
+
+export const CREATE_LOCATION_MUTATION = gql`
+  mutation CreateLocation(
+    $organizationId: String!
+    $name: String!
+    $timezone: String
+    $address: String
+    $isDefault: Boolean
+  ) {
+    createLocation(
+      organizationId: $organizationId
+      name: $name
+      timezone: $timezone
+      address: $address
+      isDefault: $isDefault
+    ) {
+      id
+      name
+      timezone
+      address
+      isDefault
+    }
+  }
+`;
+
+export const CREATE_CALENDAR_MUTATION = gql`
+  mutation CreateCalendar(
+    $organizationId: String!
+    $name: String!
+    $locationId: String
+    $color: String
+  ) {
+    createCalendar(
+      organizationId: $organizationId
+      name: $name
+      locationId: $locationId
+      color: $color
+    ) {
+      id
+      name
+      color
+      locationId
+    }
+  }
+`;
+
+// ─── Epic 9: week templates & recurring rules ────────────────
+
+const WEEK_TEMPLATE_FIELDS = `
+  id
+  name
+  description
+  locationId
+  calendarId
+  rules {
+    id
+    dayOfWeek
+    shiftTemplateId
+    roleId
+    employeeId
+    requiredCount
+    effectiveFrom
+    effectiveTo
+  }
+`;
+
+export const WEEK_TEMPLATES_QUERY = gql`
+  query WeekTemplates($organizationId: String!, $locationId: String) {
+    weekTemplates(organizationId: $organizationId, locationId: $locationId) {
+      ${WEEK_TEMPLATE_FIELDS}
+    }
+  }
+`;
+
+export const CREATE_WEEK_TEMPLATE_MUTATION = gql`
+  mutation CreateWeekTemplate(
+    $organizationId: String!
+    $name: String!
+    $description: String
+    $locationId: String
+    $calendarId: String
+  ) {
+    createWeekTemplate(
+      organizationId: $organizationId
+      name: $name
+      description: $description
+      locationId: $locationId
+      calendarId: $calendarId
+    ) {
+      ${WEEK_TEMPLATE_FIELDS}
+    }
+  }
+`;
+
+export const DELETE_WEEK_TEMPLATE_MUTATION = gql`
+  mutation DeleteWeekTemplate($organizationId: String!, $id: String!) {
+    deleteWeekTemplate(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const CREATE_RECURRING_RULE_MUTATION = gql`
+  mutation CreateRecurringShiftRule(
+    $organizationId: String!
+    $weekTemplateId: String
+    $dayOfWeek: Int!
+    $shiftTemplateId: String!
+    $roleId: String
+    $employeeId: String
+    $requiredCount: Int
+    $effectiveFrom: DateTime
+    $effectiveTo: DateTime
+  ) {
+    createRecurringShiftRule(
+      organizationId: $organizationId
+      weekTemplateId: $weekTemplateId
+      dayOfWeek: $dayOfWeek
+      shiftTemplateId: $shiftTemplateId
+      roleId: $roleId
+      employeeId: $employeeId
+      requiredCount: $requiredCount
+      effectiveFrom: $effectiveFrom
+      effectiveTo: $effectiveTo
+    ) {
+      id
+      dayOfWeek
+      shiftTemplateId
+      roleId
+      employeeId
+      requiredCount
+    }
+  }
+`;
+
+export const DELETE_RECURRING_RULE_MUTATION = gql`
+  mutation DeleteRecurringShiftRule($organizationId: String!, $id: String!) {
+    deleteRecurringShiftRule(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const GENERATE_SCHEDULE_FROM_TEMPLATE_MUTATION = gql`
+  mutation GenerateScheduleFromTemplate(
+    $organizationId: String!
+    $weekStartDate: DateTime!
+    $weekTemplateId: String
+    $locationId: String
+    $calendarId: String
+  ) {
+    generateScheduleFromTemplate(
+      organizationId: $organizationId
+      weekStartDate: $weekStartDate
+      weekTemplateId: $weekTemplateId
+      locationId: $locationId
+      calendarId: $calendarId
+    ) {
+      schedule {
+        id
+        weekStartDate
+        status
+      }
+      createdAssignmentIds
+      createdRequirementIds
+      skipped {
+        ruleId
+        date
+        reason
+      }
+      violations {
+        code
+        level
+        message
+      }
+    }
+  }
+`;
+
+export const SAVE_WEEK_AS_TEMPLATE_MUTATION = gql`
+  mutation SaveWeekAsTemplate(
+    $organizationId: String!
+    $scheduleId: String!
+    $name: String!
+    $description: String
+  ) {
+    saveWeekAsTemplate(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      name: $name
+      description: $description
+    ) {
+      ${WEEK_TEMPLATE_FIELDS}
+    }
+  }
+`;
+
+// ─── Epic 9: bulk operations ─────────────────────────────────
+
+const BULK_RESULT_FIELDS = `
+  operation
+  successCount
+  failureCount
+  results {
+    index
+    success
+    assignmentId
+    message
+    errors {
+      code
+      level
+      message
+    }
+  }
+`;
+
+export const BULK_ASSIGN_SHIFTS_MUTATION = gql`
+  mutation BulkAssignShifts($organizationId: String!, $items: [BulkAssignShiftInput!]!) {
+    bulkAssignShifts(organizationId: $organizationId, items: $items) {
+      ${BULK_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const BULK_REMOVE_SHIFTS_MUTATION = gql`
+  mutation BulkRemoveShifts($organizationId: String!, $assignmentIds: [String!]!) {
+    bulkRemoveShifts(organizationId: $organizationId, assignmentIds: $assignmentIds) {
+      ${BULK_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const BULK_COPY_SHIFTS_MUTATION = gql`
+  mutation BulkCopyShifts($organizationId: String!, $items: [BulkCopyShiftInput!]!) {
+    bulkCopyShifts(organizationId: $organizationId, items: $items) {
+      ${BULK_RESULT_FIELDS}
+    }
+  }
+`;
+
+export const BULK_MOVE_SHIFTS_MUTATION = gql`
+  mutation BulkMoveShifts($organizationId: String!, $items: [BulkMoveShiftInput!]!) {
+    bulkMoveShifts(organizationId: $organizationId, items: $items) {
+      ${BULK_RESULT_FIELDS}
+    }
+  }
+`;
+
+// ─── Epic 9: shift swaps ─────────────────────────────────────
+
+const SWAP_FIELDS = `
+  id
+  assignmentId
+  requestedById
+  targetEmployeeId
+  status
+  message
+  createdAt
+  respondedAt
+  reviewedAt
+  assignment {
+    id
+    date
+    effectiveStartTime
+    effectiveEndTime
+  }
+  requestedBy {
+    id
+    firstName
+    lastName
+  }
+  targetEmployee {
+    id
+    firstName
+    lastName
+  }
+`;
+
+export const SHIFT_SWAP_REQUESTS_QUERY = gql`
+  query ShiftSwapRequests($organizationId: String!, $status: ShiftSwapStatus, $employeeId: String) {
+    shiftSwapRequests(
+      organizationId: $organizationId
+      status: $status
+      employeeId: $employeeId
+    ) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+export const CREATE_SHIFT_SWAP_MUTATION = gql`
+  mutation CreateShiftSwapRequest(
+    $organizationId: String!
+    $assignmentId: String!
+    $targetEmployeeId: String!
+    $message: String
+  ) {
+    createShiftSwapRequest(
+      organizationId: $organizationId
+      assignmentId: $assignmentId
+      targetEmployeeId: $targetEmployeeId
+      message: $message
+    ) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+export const ACCEPT_SHIFT_SWAP_MUTATION = gql`
+  mutation AcceptShiftSwap($organizationId: String!, $id: String!) {
+    acceptShiftSwap(organizationId: $organizationId, id: $id) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+export const APPROVE_SHIFT_SWAP_MUTATION = gql`
+  mutation ApproveShiftSwap($organizationId: String!, $id: String!) {
+    approveShiftSwap(organizationId: $organizationId, id: $id) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+export const REJECT_SHIFT_SWAP_MUTATION = gql`
+  mutation RejectShiftSwap($organizationId: String!, $id: String!) {
+    rejectShiftSwap(organizationId: $organizationId, id: $id) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+export const CANCEL_SHIFT_SWAP_MUTATION = gql`
+  mutation CancelShiftSwap($organizationId: String!, $id: String!) {
+    cancelShiftSwap(organizationId: $organizationId, id: $id) {
+      ${SWAP_FIELDS}
+    }
+  }
+`;
+
+// ─── Epic 9: comments & attachments ──────────────────────────
+
+export const SHIFT_COMMENTS_QUERY = gql`
+  query ShiftComments($organizationId: String!, $assignmentId: String, $scheduleId: String) {
+    shiftComments(
+      organizationId: $organizationId
+      assignmentId: $assignmentId
+      scheduleId: $scheduleId
+    ) {
+      id
+      assignmentId
+      scheduleId
+      authorId
+      authorName
+      text
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_SHIFT_COMMENT_MUTATION = gql`
+  mutation CreateShiftComment(
+    $organizationId: String!
+    $text: String!
+    $assignmentId: String
+    $scheduleId: String
+  ) {
+    createShiftComment(
+      organizationId: $organizationId
+      text: $text
+      assignmentId: $assignmentId
+      scheduleId: $scheduleId
+    ) {
+      id
+      authorId
+      authorName
+      text
+      createdAt
+    }
+  }
+`;
+
+export const DELETE_SHIFT_COMMENT_MUTATION = gql`
+  mutation DeleteShiftComment($organizationId: String!, $id: String!) {
+    deleteShiftComment(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const ATTACHMENTS_QUERY = gql`
+  query Attachments(
+    $organizationId: String!
+    $entityType: AttachmentEntityType!
+    $entityId: String!
+  ) {
+    attachments(
+      organizationId: $organizationId
+      entityType: $entityType
+      entityId: $entityId
+    ) {
+      id
+      fileName
+      url
+      mimeType
+      size
+      createdAt
+    }
+  }
+`;
+
+export const DELETE_ATTACHMENT_MUTATION = gql`
+  mutation DeleteAttachment($organizationId: String!, $id: String!) {
+    deleteAttachment(organizationId: $organizationId, id: $id)
+  }
+`;
+
+// ─── Epic 9: realtime ────────────────────────────────────────
+
+export const SCHEDULE_UPDATED_SUBSCRIPTION = gql`
+  subscription ScheduleUpdated(
+    $organizationId: String!
+    $scheduleId: String
+    $weekStartDate: DateTime
+    $locationId: String
+    $calendarId: String
+  ) {
+    scheduleUpdated(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      weekStartDate: $weekStartDate
+      locationId: $locationId
+      calendarId: $calendarId
+    ) {
+      organizationId
+      scheduleId
+      weekStartDate
+      kind
+      assignmentIds
+      actorId
+      version
+      updatedAt
     }
   }
 `;

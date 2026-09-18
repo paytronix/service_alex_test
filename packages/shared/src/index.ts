@@ -23,10 +23,38 @@ export type {
   ScheduleVersionDto,
   ShiftAssignmentHistoryDto,
   ShiftEventPayload,
+  ShiftSwapEventPayload,
+  ShiftCommentEventPayload,
   LeaveRequestEventPayload,
   SchedulePublishedEventPayload,
   DomainEventPayloads,
 } from "./notifications";
+export {
+  ShiftSwapStatus,
+  SHIFT_SWAP_STATUS_LABELS,
+  AttachmentEntityType,
+  ATTACHMENT_MAX_SIZE_BYTES,
+  ATTACHMENT_ALLOWED_MIME_TYPES,
+  isAllowedAttachmentMimeType,
+  isRuleEffectiveOn,
+  BulkOperation,
+  ScheduleUpdateKind,
+  OfflineMutationKind,
+} from "./advanced";
+export type {
+  ShiftSwapRequestDto,
+  AttachmentDto,
+  ShiftCommentDto,
+  LocationDto,
+  CalendarDto,
+  RecurringShiftRuleDto,
+  WeekTemplateDto,
+  BulkItemResultDto,
+  BulkResultDto,
+  ScheduleUpdatedPayload,
+  ShiftAssignmentChangedPayload,
+  OfflineQueuedMutation,
+} from "./advanced";
 export { BUSINESS_RULES } from "./constants";
 export { CatalogEntity } from "./catalog";
 export type { DepartmentDto, RoleDto, SkillDto, ShiftTemplateDto } from "./catalog";

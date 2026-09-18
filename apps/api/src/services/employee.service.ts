@@ -11,6 +11,7 @@ import { AuditService } from "./audit.service";
 
 export interface EmployeeFilter {
   departmentId?: string;
+  locationId?: string;
   roleId?: string;
   status?: EmployeeStatus;
   search?: string;
@@ -47,6 +48,7 @@ export class EmployeeService {
     const where: Prisma.EmployeeWhereInput = {
       organizationId,
       ...(filter.departmentId && { departmentId: filter.departmentId }),
+      ...(filter.locationId && { locationId: filter.locationId }),
       ...(filter.roleId && { roleId: filter.roleId }),
       ...(filter.status && { status: filter.status }),
       ...(filter.search && {

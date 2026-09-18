@@ -1,8 +1,10 @@
-import { NotificationType, ScheduleStatus } from "@prisma/client";
+import { MembershipRole, NotificationType, ScheduleStatus } from "@prisma/client";
 import type {
   LeaveRequestEventPayload,
   SchedulePublishedEventPayload,
+  ShiftCommentEventPayload,
   ShiftEventPayload,
+  ShiftSwapEventPayload,
 } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
 import { notificationService, NotificationService } from "../services/notification.service";
@@ -70,6 +72,105 @@ export function registerNotificationSubscribers(
       excludeUserIds: payload.actorId ? [payload.actorId] : [],
     });
   });
+
+  bus.on("shiftSwap.requested", async (payload) => {
+    await service.notify({
+      organizationId: payload.organizationId,
+      type: NotificationType.SWAP_REQUESTED,
+      title: "Shift swap requested",
+      body: `A colleague asks you to take their shift on ${payload.date} (${payload.startTime}–${payload.endTime}).`,
+      payload: swapPayload(payload),
+      employeeIds: [payload.targetEmployeeId],
+      excludeUserIds: payload.actorId ? [payload.actorId] : [],
+    });
+  });
+
+  bus.on("shiftSwap.accepted", async (payload) => {
+    await notifyManagers(service, payload, NotificationType.SWAP_ACCEPTED, {
+      title: "Shift swap awaiting approval",
+      body: `A swap for the shift on ${payload.date} was accepted by the target employee and needs approval.`,
+    });
+  });
+
+  bus.on("shiftSwap.approved", async (payload) => {
+    await service.notify({
+      organizationId: payload.organizationId,
+      type: NotificationType.SWAP_APPROVED,
+      title: "Shift swap approved",
+      body: `The swap for the shift on ${payload.date} was approved.`,
+      payload: swapPayload(payload),
+      employeeIds: [payload.requestedById, payload.targetEmployeeId],
+      excludeUserIds: payload.actorId ? [payload.actorId] : [],
+    });
+  });
+
+  bus.on("shiftSwap.rejected", async (payload) => {
+    await service.notify({
+      organizationId: payload.organizationId,
+      type: NotificationType.SWAP_REJECTED,
+      title: "Shift swap rejected",
+      body: `The swap for the shift on ${payload.date} was rejected.`,
+      payload: swapPayload(payload),
+      employeeIds: [payload.requestedById, payload.targetEmployeeId],
+      excludeUserIds: payload.actorId ? [payload.actorId] : [],
+    });
+  });
+
+  bus.on("shiftComment.added", async (payload) => {
+    if (payload.recipientEmployeeIds.length === 0) return;
+    await service.notify({
+      organizationId: payload.organizationId,
+      type: NotificationType.SHIFT_COMMENT_ADDED,
+      title: "New shift comment",
+      body: payload.text.slice(0, 200),
+      payload: commentPayload(payload),
+      employeeIds: payload.recipientEmployeeIds,
+      excludeUserIds: payload.actorId ? [payload.actorId] : [],
+    });
+  });
+}
+
+async function notifyManagers(
+  service: NotificationService,
+  payload: ShiftSwapEventPayload,
+  type: NotificationType,
+  content: { title: string; body: string },
+): Promise<void> {
+  const managers = await prisma.membership.findMany({
+    where: {
+      organizationId: payload.organizationId,
+      role: { in: [MembershipRole.OWNER, MembershipRole.MANAGER] },
+    },
+    select: { userId: true },
+  });
+  if (managers.length === 0) return;
+  await service.notify({
+    organizationId: payload.organizationId,
+    type,
+    title: content.title,
+    body: content.body,
+    payload: swapPayload(payload),
+    recipientUserIds: managers.map((manager) => manager.userId),
+    excludeUserIds: payload.actorId ? [payload.actorId] : [],
+  });
+}
+
+function swapPayload(payload: ShiftSwapEventPayload) {
+  return {
+    swapRequestId: payload.swapRequestId,
+    assignmentId: payload.assignmentId,
+    scheduleId: payload.scheduleId,
+    date: payload.date,
+    status: payload.status,
+  };
+}
+
+function commentPayload(payload: ShiftCommentEventPayload) {
+  return {
+    commentId: payload.commentId,
+    assignmentId: payload.assignmentId,
+    scheduleId: payload.scheduleId,
+  };
 }
 
 async function notifyLeaveDecision(
