@@ -233,7 +233,7 @@ Report hours include assignments from published schedules by default. Passing `i
 includes draft schedules. Assignment-level time and break overrides are respected, and shifts
 crossing midnight use the shared `paidMinutes` helper. All assignment statuses are counted.
 Exports are available as CSV, Excel, and PDF files. The web application uses `recharts` for report
-charts; the backend uses `exceljs` and `pdfkit` for generated files.
+charts; Excel files are generated in-house without a dependency, and PDF files use `pdfkit`.
 
 ### Environment variables (Epic 7)
 

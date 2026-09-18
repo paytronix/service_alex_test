@@ -210,7 +210,13 @@ describe("analytics reports", () => {
       });
       expect(result.body.byteLength).toBeGreaterThan(4);
       if (format === ExportFormat.CSV) expect(result.body.toString("utf8")).toContain("\uFEFFEmployee");
-      if (format === ExportFormat.EXCEL) expect(result.body.subarray(0, 2).toString()).toBe("PK");
+      if (format === ExportFormat.EXCEL) {
+        expect(result.body.subarray(0, 4)).toEqual(Buffer.from("PK\x03\x04"));
+        expect(result.body.toString("utf8")).toContain("xl/worksheets/sheet1.xml");
+        expect(result.body.toString("utf8")).toContain("Employee");
+        expect(result.body.toString("utf8")).toContain("Alice Worker");
+        expect(result.body.subarray(-22, -18)).toEqual(Buffer.from("PK\x05\x06"));
+      }
       if (format === ExportFormat.PDF) expect(result.body.subarray(0, 4).toString()).toBe("%PDF");
     }
   });

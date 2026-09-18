@@ -1,4 +1,3 @@
-import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import {
   ExportFormat,
@@ -9,6 +8,7 @@ import {
   type WorkHoursReportDto,
 } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
+import { buildXlsx } from "../utils/xlsx";
 import { analyticsService, type ReportFilters } from "./analytics.service";
 
 export interface ReportTable {
@@ -144,7 +144,7 @@ export class ReportExportService {
       input.format === ExportFormat.CSV
         ? csvBuffer(table)
         : input.format === ExportFormat.EXCEL
-          ? await excelBuffer(table)
+          ? xlsxBuffer(table)
           : await pdfBuffer(table, timezone);
     return {
       filename: `${input.type.toLowerCase()}-${input.filters.from}_${input.filters.to}.${extension}`,
@@ -185,15 +185,12 @@ function csvBuffer(table: ReportTable): Buffer {
   return Buffer.from(`\uFEFF${lines.join("\r\n")}\r\n`, "utf8");
 }
 
-async function excelBuffer(table: ReportTable): Promise<Buffer> {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet(table.title);
-  worksheet.columns = table.columns.map((column) => ({ key: column.key, header: column.header }));
-  for (const row of table.rows) worksheet.addRow(row);
-  const header = worksheet.getRow(1);
-  header.font = { bold: true };
-  const result = await workbook.xlsx.writeBuffer();
-  return Buffer.from(result);
+function xlsxBuffer(table: ReportTable): Buffer {
+  return buildXlsx({
+    name: table.title,
+    header: table.columns.map((column) => column.header),
+    rows: table.rows.map((row) => table.columns.map((column) => row[column.key] ?? "")),
+  });
 }
 
 function pdfBuffer(table: ReportTable, timezone: string): Promise<Buffer> {
