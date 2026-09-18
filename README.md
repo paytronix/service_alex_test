@@ -183,10 +183,40 @@ within their own department. Assignment warnings are returned to clients while v
 block writes. `setShiftRequirement` with `requiredCount: 0` deletes the requirement and returns
 `null`.
 
+## Features (Epic 7 — Notifications and change history)
+
+- [x] `Notification`, `ScheduleVersion` and `ShiftAssignmentHistory` models with organization scoping and a unified `AuditLog`
+- [x] In-process typed event bus (`shift.assigned`, `shift.changed`, `leaveRequest.approved`, `leaveRequest.rejected`, `schedule.published`)
+- [x] `NotificationService` with recipient resolution, pluggable channels (`IN_APP`, `EMAIL`), background delivery, `FAILED` status and retries
+- [x] Injectable email transport (`setEmailTransport`); the default development transport prints the message to the console (point it at Mailhog/SMTP in real environments)
+- [x] Real-time in-app delivery through the `notificationReceived` `graphql-ws` subscription
+- [x] `AuditService.record(actor, action, entity, metadata)` plus filtered, paginated `auditLogs` for Owner/Manager
+- [x] Schedule version list, change history and version diff queries
+- [x] Notification bell with unread counter, notification center at `/notifications`, Audit Log page at `/audit-log`, and a change-history panel in the scheduler
+
+### GraphQL operations
+
+| Entity | Queries | Mutations / Subscriptions |
+|---|---|---|
+| Notification | `notifications`, `notificationsCount`, `unreadNotificationsCount` | `markNotificationRead`, `markAllNotificationsRead`, `notificationReceived` (subscription) |
+| AuditLog | `auditLogs`, `auditLogsCount` | written by services only |
+| Schedule history | `scheduleVersions`, `scheduleChangeHistory`, `scheduleVersionDiff` | — |
+
+Notifications are private to their recipient; `auditLogs` requires `Owner`/`Manager`, and schedule
+history additionally allows `Supervisor`. Shift events are not announced for draft schedules, and
+the user who performed the action is never notified about it.
+
+### Environment variables (Epic 7)
+
+| Variable | Scope | Purpose |
+|---|---|---|
+| `VITE_WS_URL` | web | GraphQL WebSocket endpoint; derived from `VITE_API_URL` when unset |
+
 ### Seed data
 
 `pnpm --filter @shiftflow/api db:seed` creates a demo organization with Owner/Manager/Supervisor/Employee
-accounts, catalogs, employee profiles, availability and a pending leave request. The demo password is
+accounts, catalogs, employee profiles, availability, a pending leave request, demo in-app
+notifications, a shift change history entry and an audit record. The demo password is
 printed by the script — it is for local development only.
 
 ## License

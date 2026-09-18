@@ -36,7 +36,15 @@ Request
           ▼
 ┌─────────────────────┐
 │     Services         │  ← Business logic, orchestration
-│   (services/)        │     AuthService, OrganizationService, AuditService
+│   (services/)        │     AuthService, OrganizationService, AuditService,
+│                      │     NotificationService, ScheduleHistoryService
+└─────────┬───────────┘
+          │  emits domain events
+          ▼
+┌─────────────────────┐
+│     Event bus        │  ← In-process typed EventEmitter (events/)
+│   (events/)          │     Subscribers create Notification rows and
+│                      │     dispatch IN_APP (pubsub) / EMAIL (transport)
 └─────────┬───────────┘
           │
           ▼
@@ -100,7 +108,11 @@ Authorization is enforced at the resolver level using `requireRole()` middleware
 | `/register` | Public | Registration form |
 | `/forgot-password` | Public | Password reset request |
 | `/reset-password` | Public | Password reset form |
-| `/dashboard` | Protected | Organization management |
+| `/dashboard` | Protected | Organization management, notification bell |
+| `/employees` | Protected | Employee management |
+| `/schedule` | Protected | Shift scheduler and change history panel |
+| `/notifications` | Protected | Notification center |
+| `/audit-log` | Owner/Manager | Audit log with filters and pagination |
 
 ### Token Management
 
@@ -108,6 +120,8 @@ Authorization is enforced at the resolver level using `requireRole()` middleware
 - `AuthProvider` handles automatic refresh on app load
 - Apollo link injects `Authorization: Bearer <token>` header
 - Refresh token rotation on each refresh
+- Subscriptions use an Apollo split link; the WebSocket client sends the same bearer token in
+  `connectionParams`, and the server builds the GraphQL context from it
 
 ## Infrastructure
 

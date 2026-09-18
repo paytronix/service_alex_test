@@ -285,6 +285,12 @@ erDiagram
 19. **Employee self-service**: an `EMPLOYEE` may edit only the availability of, and create leave requests for, the employee profile linked to their own user; `OWNER`/`MANAGER` may act on any employee in the organization.
 20. **Dismissal vs deletion**: `dismissEmployee` is a soft delete that sets `status = DISMISSED`; `deleteEmployee` removes the record.
 21. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable until reopened by an Owner or Manager; publishing increments `version` and stores a `ScheduleVersion` snapshot.
+22. **Notification fan-out**: domain events (`shift.assigned`, `shift.changed`, `leaveRequest.approved`, `leaveRequest.rejected`, `schedule.published`) are published on an in-process event bus; subscribers create one `Notification` row per recipient and channel. Recipients must be members of the organization, the acting user is excluded, and enabled channels come from `Organization.notifyInApp`/`notifyByEmail` unless the caller passes them explicitly.
+23. **Notification delivery**: rows are created `PENDING` and delivered in the background — `SENT` with `sentAt` on success, otherwise retried up to three times and stored as `FAILED` with `attempts`/`lastError`; `retryFailed` re-delivers them. Shift events are suppressed for draft schedules.
+24. **Notification ownership**: a user may read and mark read only their own notifications; `markNotificationRead`/`markAllNotificationsRead` set `readAt` and `status = READ`.
+25. **Shift change history**: every assignment create/move/replace/remove writes a `ShiftAssignmentHistory` row with the change type, date, previous/new employee and actor, enabling entries such as "Monday: John → Mike, changed by Manager, 14:32".
+26. **History access**: `auditLogs` is restricted to `OWNER`/`MANAGER`; `scheduleVersions`, `scheduleChangeHistory` and `scheduleVersionDiff` also allow `SUPERVISOR`. `scheduleVersionDiff` compares two `ScheduleVersion` snapshots and derives `CREATED`/`MOVED`/`REPLACED`/`REMOVED` entries.
+27. **Audit writes are system-only**: `AuditLog` rows are written by services (`AuditService.record`), never by client mutations.
 
 ## Enums
 
@@ -308,3 +314,24 @@ erDiagram
 
 ### LeaveStatus
 `PENDING` | `APPROVED` | `REJECTED` | `CANCELLED`
+
+### NotificationType
+`SHIFT_ASSIGNED` | `SHIFT_CHANGED` | `REQUEST_APPROVED` | `REQUEST_REJECTED` | `SCHEDULE_PUBLISHED`
+
+### NotificationChannel
+`EMAIL` | `IN_APP`
+
+### NotificationStatus
+`PENDING` | `SENT` | `FAILED` | `READ`
+
+### ScheduleChangeType
+`CREATED` | `MOVED` | `REPLACED` | `REMOVED`
+
+## Notification and history models
+
+| Model | Key fields |
+|---|---|
+| `Notification` | `organizationId`, `recipientId` → `User`, `type`, `channel`, `status`, `title`, `body`, `payload` (JSON), `attempts`, `lastError`, `sentAt`, `readAt`, `createdAt` |
+| `AuditLog` | `organizationId`, `userId` (actor), `action`, `entity`, `entityId`, `meta` (JSON), `createdAt` |
+| `ScheduleVersion` | `organizationId`, `scheduleId`, `version`, `snapshot` (JSON assignments), `publishedById`, `publishedAt` |
+| `ShiftAssignmentHistory` | `organizationId`, `scheduleId`, `assignmentId`, `changeType`, `date`, `previousEmployeeId`, `newEmployeeId`, `changedById`, `metadata`, `changedAt` |

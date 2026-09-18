@@ -7,6 +7,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { CatalogsPage } from "./pages/CatalogsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { SchedulerPage } from "./pages/SchedulerPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { AuditLogPage } from "./pages/AuditLogPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export function App() {
@@ -45,6 +47,22 @@ export function App() {
         element={
           <ProtectedRoute>
             <SchedulerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/audit-log"
+        element={
+          <ProtectedRoute>
+            <AuditLogPage />
           </ProtectedRoute>
         }
       />

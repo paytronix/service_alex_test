@@ -8,7 +8,13 @@ import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHt
 import { useServer } from "graphql-ws/lib/use/ws";
 import { WebSocketServer } from "ws";
 import { schema } from "./schema";
-import { createContext, GraphQLContext } from "./middleware/auth";
+import {
+  createContext,
+  createContextForUser,
+  extractUserFromToken,
+  GraphQLContext,
+} from "./middleware/auth";
+import "./events";
 
 async function main() {
   const app = express();
@@ -19,7 +25,19 @@ async function main() {
     path: "/graphql",
   });
 
-  const serverCleanup = useServer({ schema }, wsServer);
+  const serverCleanup = useServer(
+    {
+      schema,
+      context: (ctx) => {
+        const params = (ctx.connectionParams ?? {}) as Record<string, unknown>;
+        const token = params.authorization ?? params.Authorization;
+        return createContextForUser(
+          extractUserFromToken(typeof token === "string" ? token : undefined),
+        );
+      },
+    },
+    wsServer,
+  );
 
   const apolloServer = new ApolloServer<GraphQLContext>({
     schema,

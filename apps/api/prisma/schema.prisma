@@ -31,6 +31,8 @@ model User {
   reviewedLeaves   LeaveRequest[] @relation("LeaveReviewer")
   publishedSchedules Schedule[] @relation("SchedulePublisher")
   scheduleVersions  ScheduleVersion[] @relation("ScheduleVersionPublisher")
+  notifications    Notification[]  @relation("NotificationRecipient")
+  shiftChanges     ShiftAssignmentHistory[] @relation("ShiftHistoryActor")
 
   @@map("users")
 }
@@ -67,6 +69,7 @@ model Organization {
   shiftAssignments ShiftAssignment[]
   shiftRequirements ShiftRequirement[]
   scheduleVersions ScheduleVersion[]
+  shiftHistory     ShiftAssignmentHistory[]
 
   @@map("organizations")
 }
@@ -300,6 +303,7 @@ model Schedule {
   assignments  ShiftAssignment[]
   requirements ShiftRequirement[]
   versions     ScheduleVersion[]
+  history      ShiftAssignmentHistory[]
   publishedBy  User?            @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, weekStartDate])
@@ -420,20 +424,80 @@ model LeaveRequest {
   @@map("leave_requests")
 }
 
-// ─── Notifications ───────────────────────────────────────────
+// ─── Schedule change history ─────────────────────────────────
 
-model Notification {
-  id             String    @id @default(uuid())
-  organizationId String
-  recipientId    String
-  title          String
-  body           String
-  type           String
-  readAt         DateTime?
-  createdAt      DateTime  @default(now())
+enum ScheduleChangeType {
+  CREATED
+  MOVED
+  REPLACED
+  REMOVED
+}
+
+model ShiftAssignmentHistory {
+  id                 String             @id @default(uuid())
+  organizationId     String
+  scheduleId         String
+  assignmentId       String
+  changeType         ScheduleChangeType
+  date               DateTime           @db.Date
+  previousEmployeeId String?
+  newEmployeeId      String?
+  changedById        String?
+  metadata           Json?
+  changedAt          DateTime           @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule     Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  changedBy    User?        @relation("ShiftHistoryActor", fields: [changedById], references: [id], onDelete: SetNull)
 
+  @@index([scheduleId, changedAt])
+  @@index([organizationId])
+  @@map("shift_assignment_history")
+}
+
+// ─── Notifications ───────────────────────────────────────────
+
+enum NotificationType {
+  SHIFT_ASSIGNED
+  SHIFT_CHANGED
+  REQUEST_APPROVED
+  REQUEST_REJECTED
+  SCHEDULE_PUBLISHED
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+model Notification {
+  id             String              @id @default(uuid())
+  organizationId String
+  recipientId    String
+  type           NotificationType
+  channel        NotificationChannel @default(IN_APP)
+  status         NotificationStatus  @default(PENDING)
+  title          String
+  body           String
+  payload        Json?
+  attempts       Int                 @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  readAt         DateTime?
+  createdAt      DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipient    User         @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, organizationId, createdAt])
+  @@index([organizationId, status])
   @@map("notifications")
 }
 
@@ -452,5 +516,8 @@ model AuditLog {
   user         User?         @relation("AuditUser", fields: [userId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id])
 
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action])
+  @@index([entity, entityId])
   @@map("audit_logs")
 }

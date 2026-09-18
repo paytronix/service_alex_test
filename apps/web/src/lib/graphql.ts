@@ -865,3 +865,206 @@ export const REJECT_LEAVE_REQUEST_MUTATION = gql`
     }
   }
 `;
+
+// ─── Notifications ───────────────────────────────────────────
+
+export const NOTIFICATIONS_QUERY = gql`
+  query Notifications(
+    $organizationId: String!
+    $read: Boolean
+    $type: NotificationType
+    $skip: Int
+    $take: Int
+  ) {
+    notifications(
+      organizationId: $organizationId
+      read: $read
+      type: $type
+      skip: $skip
+      take: $take
+    ) {
+      id
+      type
+      channel
+      status
+      title
+      body
+      payload
+      readAt
+      createdAt
+    }
+  }
+`;
+
+export const NOTIFICATIONS_COUNT_QUERY = gql`
+  query NotificationsCount($organizationId: String!, $read: Boolean, $type: NotificationType) {
+    notificationsCount(organizationId: $organizationId, read: $read, type: $type)
+  }
+`;
+
+export const UNREAD_NOTIFICATIONS_COUNT_QUERY = gql`
+  query UnreadNotificationsCount($organizationId: String!) {
+    unreadNotificationsCount(organizationId: $organizationId)
+  }
+`;
+
+export const MARK_NOTIFICATION_READ_MUTATION = gql`
+  mutation MarkNotificationRead($organizationId: String!, $id: String!) {
+    markNotificationRead(organizationId: $organizationId, id: $id) {
+      id
+      readAt
+      status
+    }
+  }
+`;
+
+export const MARK_ALL_NOTIFICATIONS_READ_MUTATION = gql`
+  mutation MarkAllNotificationsRead($organizationId: String!) {
+    markAllNotificationsRead(organizationId: $organizationId)
+  }
+`;
+
+export const NOTIFICATION_RECEIVED_SUBSCRIPTION = gql`
+  subscription NotificationReceived($organizationId: String!) {
+    notificationReceived(organizationId: $organizationId) {
+      id
+      type
+      channel
+      status
+      title
+      body
+      payload
+      readAt
+      createdAt
+    }
+  }
+`;
+
+// ─── Audit log ───────────────────────────────────────────────
+
+export const AUDIT_LOGS_QUERY = gql`
+  query AuditLogs(
+    $organizationId: String!
+    $actorId: String
+    $action: String
+    $entity: String
+    $from: DateTime
+    $to: DateTime
+    $skip: Int
+    $take: Int
+  ) {
+    auditLogs(
+      organizationId: $organizationId
+      actorId: $actorId
+      action: $action
+      entity: $entity
+      from: $from
+      to: $to
+      skip: $skip
+      take: $take
+    ) {
+      id
+      action
+      entity
+      entityId
+      meta
+      createdAt
+      user {
+        id
+        email
+        firstName
+        lastName
+      }
+    }
+  }
+`;
+
+export const AUDIT_LOGS_COUNT_QUERY = gql`
+  query AuditLogsCount(
+    $organizationId: String!
+    $actorId: String
+    $action: String
+    $entity: String
+    $from: DateTime
+    $to: DateTime
+  ) {
+    auditLogsCount(
+      organizationId: $organizationId
+      actorId: $actorId
+      action: $action
+      entity: $entity
+      from: $from
+      to: $to
+    )
+  }
+`;
+
+// ─── Schedule history ────────────────────────────────────────
+
+export const SCHEDULE_VERSIONS_QUERY = gql`
+  query ScheduleVersions($organizationId: String!, $scheduleId: String!) {
+    scheduleVersions(organizationId: $organizationId, scheduleId: $scheduleId) {
+      id
+      version
+      publishedAt
+      publishedBy {
+        id
+        firstName
+        lastName
+        email
+      }
+    }
+  }
+`;
+
+export const SCHEDULE_CHANGE_HISTORY_QUERY = gql`
+  query ScheduleChangeHistory(
+    $organizationId: String!
+    $scheduleId: String!
+    $skip: Int
+    $take: Int
+  ) {
+    scheduleChangeHistory(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      skip: $skip
+      take: $take
+    ) {
+      id
+      assignmentId
+      changeType
+      date
+      previousEmployeeId
+      newEmployeeId
+      changedAt
+      changedBy {
+        id
+        firstName
+        lastName
+        email
+      }
+    }
+  }
+`;
+
+export const SCHEDULE_VERSION_DIFF_QUERY = gql`
+  query ScheduleVersionDiff(
+    $organizationId: String!
+    $scheduleId: String!
+    $versionA: Int!
+    $versionB: Int!
+  ) {
+    scheduleVersionDiff(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      versionA: $versionA
+      versionB: $versionB
+    ) {
+      assignmentId
+      changeType
+      date
+      previousEmployeeId
+      newEmployeeId
+    }
+  }
+`;
