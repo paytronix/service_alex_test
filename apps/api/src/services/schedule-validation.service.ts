@@ -1,4 +1,5 @@
 import {
+  AvailabilityType as PrismaAvailabilityType,
   EmployeeStatus as PrismaEmployeeStatus,
   LeaveStatus as PrismaLeaveStatus,
   LeaveType as PrismaLeaveType,
@@ -19,7 +20,35 @@ import {
 } from "@shiftflow/shared";
 import { prisma } from "../utils/prisma";
 
-export interface AssignmentValidationInput extends CandidateAssignment {
+const employeeStatusMap: Record<PrismaEmployeeStatus, EmployeeStatus> = {
+  [PrismaEmployeeStatus.WORKING]: EmployeeStatus.WORKING,
+  [PrismaEmployeeStatus.VACATION]: EmployeeStatus.VACATION,
+  [PrismaEmployeeStatus.SICK]: EmployeeStatus.SICK,
+  [PrismaEmployeeStatus.DISMISSED]: EmployeeStatus.DISMISSED,
+};
+
+const leaveStatusMap: Record<PrismaLeaveStatus, LeaveStatus> = {
+  [PrismaLeaveStatus.PENDING]: LeaveStatus.PENDING,
+  [PrismaLeaveStatus.APPROVED]: LeaveStatus.APPROVED,
+  [PrismaLeaveStatus.REJECTED]: LeaveStatus.REJECTED,
+  [PrismaLeaveStatus.CANCELLED]: LeaveStatus.CANCELLED,
+};
+
+const leaveTypeMap: Record<PrismaLeaveType, LeaveType> = {
+  [PrismaLeaveType.VACATION]: LeaveType.VACATION,
+  [PrismaLeaveType.DAY_OFF]: LeaveType.DAY_OFF,
+  [PrismaLeaveType.SICK]: LeaveType.SICK,
+  [PrismaLeaveType.UNPAID]: LeaveType.UNPAID,
+  [PrismaLeaveType.OTHER]: LeaveType.OTHER,
+};
+
+const availabilityTypeMap: Record<PrismaAvailabilityType, AvailabilityType> = {
+  [PrismaAvailabilityType.UNAVAILABLE]: AvailabilityType.UNAVAILABLE,
+  [PrismaAvailabilityType.AVAILABLE]: AvailabilityType.AVAILABLE,
+  [PrismaAvailabilityType.AVAILABLE_AFTER]: AvailabilityType.AVAILABLE_AFTER,
+};
+
+export interface AssignmentValidationInput extends Omit<CandidateAssignment, "requiredSkillIds"> {
   scheduleId: string;
   shiftTemplateId: string;
 }
@@ -73,13 +102,7 @@ export class ScheduleValidationService {
     }));
     const constraints: EmployeeConstraints = {
       employeeId: employee.id,
-      status: employee.status === PrismaEmployeeStatus.DISMISSED
-        ? EmployeeStatus.DISMISSED
-        : employee.status === PrismaEmployeeStatus.VACATION
-          ? EmployeeStatus.VACATION
-          : employee.status === PrismaEmployeeStatus.SICK
-            ? EmployeeStatus.SICK
-            : EmployeeStatus.WORKING,
+      status: employeeStatusMap[employee.status],
       roleId: employee.roleId,
       skillIds: employee.skills.map((skill) => skill.skillId),
       maxHoursPerWeek: employee.maxHoursPerWeek,
@@ -89,16 +112,8 @@ export class ScheduleValidationService {
     const leaveWindows: LeaveWindow[] = leaves.map((leave) => ({
       startDate: toDateOnly(leave.startDate),
       endDate: toDateOnly(leave.endDate),
-      status: leave.status === PrismaLeaveStatus.APPROVED ? LeaveStatus.APPROVED : LeaveStatus.PENDING,
-      type: leave.type === PrismaLeaveType.VACATION
-        ? LeaveType.VACATION
-        : leave.type === PrismaLeaveType.DAY_OFF
-          ? LeaveType.DAY_OFF
-          : leave.type === PrismaLeaveType.SICK
-            ? LeaveType.SICK
-            : leave.type === PrismaLeaveType.UNPAID
-              ? LeaveType.UNPAID
-              : LeaveType.OTHER,
+      status: leaveStatusMap[leave.status],
+      type: leaveTypeMap[leave.type],
     }));
 
     return validateAssignment(
@@ -117,11 +132,7 @@ export class ScheduleValidationService {
         id: availability.id,
         employeeId: availability.employeeId,
         dayOfWeek: availability.dayOfWeek,
-        type: availability.type === "UNAVAILABLE"
-          ? AvailabilityType.UNAVAILABLE
-          : availability.type === "AVAILABLE_AFTER"
-            ? AvailabilityType.AVAILABLE_AFTER
-            : AvailabilityType.AVAILABLE,
+        type: availabilityTypeMap[availability.type],
         availableFrom: availability.availableFrom,
       })),
       leaves: leaveWindows,
@@ -145,7 +156,6 @@ export class ScheduleValidationService {
         endTime: assignment.endTime ?? assignment.shiftTemplate.endTime,
         breakMinutes: assignment.breakMinutes,
         roleId: assignment.roleId ?? assignment.shiftTemplate.roleId,
-        requiredSkillIds: assignment.shiftTemplate.requiredSkills.map((skill) => skill.id),
         shiftTemplateId: assignment.shiftTemplateId,
       });
       if (result.hasErrors) errors += 1;

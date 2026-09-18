@@ -284,7 +284,7 @@ erDiagram
 18. **Leave review**: Only `PENDING` requests can be approved or rejected, and only by `OWNER`/`MANAGER`; the reviewer and timestamp are stored and the action written to `AuditLog`. Approving an active `VACATION`/`SICK` request sets the employee status accordingly.
 19. **Employee self-service**: an `EMPLOYEE` may edit only the availability of, and create leave requests for, the employee profile linked to their own user; `OWNER`/`MANAGER` may act on any employee in the organization.
 20. **Dismissal vs deletion**: `dismissEmployee` is a soft delete that sets `status = DISMISSED`; `deleteEmployee` removes the record.
-21. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable.
+21. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable until reopened by an Owner or Manager; publishing increments `version` and stores a `ScheduleVersion` snapshot.
 
 ## Enums
 

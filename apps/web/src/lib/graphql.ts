@@ -618,6 +618,236 @@ export const CREATE_LEAVE_REQUEST_MUTATION = gql`
   }
 `;
 
+// ─── Shift scheduler (Epic 6) ────────────────────────────────
+
+const SCHEDULE_FIELDS = `
+  id
+  organizationId
+  weekStartDate
+  status
+  version
+  publishedAt
+  assignments {
+    id
+    employeeId
+    shiftTemplateId
+    roleId
+    date
+    effectiveStartTime
+    effectiveEndTime
+    crossesMidnight
+    durationHours
+    breakMinutes
+    notes
+    employee {
+      id
+      firstName
+      lastName
+      roleId
+      departmentId
+    }
+    shiftTemplate {
+      id
+      name
+      startTime
+      endTime
+    }
+    role {
+      id
+      name
+      color
+    }
+  }
+  requirements {
+    id
+    date
+    shiftTemplateId
+    roleId
+    requiredCount
+  }
+`;
+
+export const SCHEDULE_QUERY = gql`
+  query Schedule($organizationId: String!, $weekStartDate: DateTime!) {
+    schedule(organizationId: $organizationId, weekStartDate: $weekStartDate) {
+      ${SCHEDULE_FIELDS}
+    }
+  }
+`;
+
+export const SCHEDULE_COVERAGE_QUERY = gql`
+  query ScheduleCoverage($organizationId: String!, $scheduleId: String!) {
+    scheduleCoverage(organizationId: $organizationId, scheduleId: $scheduleId) {
+      date
+      shiftTemplateId
+      roleId
+      requiredCount
+      assignedCount
+    }
+  }
+`;
+
+export const CREATE_DRAFT_SCHEDULE_MUTATION = gql`
+  mutation CreateDraftSchedule($organizationId: String!, $weekStartDate: DateTime!) {
+    createDraftSchedule(organizationId: $organizationId, weekStartDate: $weekStartDate) {
+      ${SCHEDULE_FIELDS}
+    }
+  }
+`;
+
+export const PUBLISH_SCHEDULE_MUTATION = gql`
+  mutation PublishSchedule($organizationId: String!, $id: String!) {
+    publishSchedule(organizationId: $organizationId, id: $id) {
+      ${SCHEDULE_FIELDS}
+    }
+  }
+`;
+
+export const REOPEN_SCHEDULE_MUTATION = gql`
+  mutation ReopenSchedule($organizationId: String!, $id: String!) {
+    reopenSchedule(organizationId: $organizationId, id: $id) {
+      ${SCHEDULE_FIELDS}
+    }
+  }
+`;
+
+const SHIFT_MUTATION_RESULT = `
+  assignment {
+    id
+    employeeId
+    shiftTemplateId
+    roleId
+    date
+    effectiveStartTime
+    effectiveEndTime
+    crossesMidnight
+    durationHours
+    breakMinutes
+    notes
+    employee {
+      id
+      firstName
+      lastName
+      roleId
+      departmentId
+    }
+    shiftTemplate {
+      id
+      name
+      startTime
+      endTime
+    }
+    role {
+      id
+      name
+      color
+    }
+  }
+  violations {
+    code
+    level
+    message
+  }
+`;
+
+export const ASSIGN_SHIFT_MUTATION = gql`
+  mutation AssignShift(
+    $organizationId: String!
+    $scheduleId: String!
+    $employeeId: String!
+    $shiftTemplateId: String!
+    $date: DateTime!
+    $roleId: String
+  ) {
+    assignShift(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      employeeId: $employeeId
+      shiftTemplateId: $shiftTemplateId
+      date: $date
+      roleId: $roleId
+    ) {
+      ${SHIFT_MUTATION_RESULT}
+    }
+  }
+`;
+
+export const MOVE_SHIFT_MUTATION = gql`
+  mutation MoveShift(
+    $organizationId: String!
+    $id: String!
+    $date: DateTime
+    $employeeId: String
+    $shiftTemplateId: String
+  ) {
+    moveShift(
+      organizationId: $organizationId
+      id: $id
+      date: $date
+      employeeId: $employeeId
+      shiftTemplateId: $shiftTemplateId
+    ) {
+      ${SHIFT_MUTATION_RESULT}
+    }
+  }
+`;
+
+export const COPY_SHIFT_MUTATION = gql`
+  mutation CopyShift(
+    $organizationId: String!
+    $id: String!
+    $date: DateTime!
+    $employeeId: String
+  ) {
+    copyShift(organizationId: $organizationId, id: $id, date: $date, employeeId: $employeeId) {
+      ${SHIFT_MUTATION_RESULT}
+    }
+  }
+`;
+
+export const REMOVE_SHIFT_MUTATION = gql`
+  mutation RemoveShift($organizationId: String!, $id: String!) {
+    removeShift(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const VALIDATE_ASSIGNMENT_QUERY = gql`
+  query ValidateAssignment($organizationId: String!, $input: ValidateAssignmentInput!) {
+    validateAssignment(organizationId: $organizationId, input: $input) {
+      hasErrors
+      hasWarnings
+      violations {
+        code
+        level
+        message
+      }
+    }
+  }
+`;
+
+export const SET_SHIFT_REQUIREMENT_MUTATION = gql`
+  mutation SetShiftRequirement(
+    $organizationId: String!
+    $scheduleId: String!
+    $date: DateTime!
+    $shiftTemplateId: String!
+    $roleId: String!
+    $requiredCount: Int!
+  ) {
+    setShiftRequirement(
+      organizationId: $organizationId
+      scheduleId: $scheduleId
+      date: $date
+      shiftTemplateId: $shiftTemplateId
+      roleId: $roleId
+      requiredCount: $requiredCount
+    ) {
+      id
+      requiredCount
+    }
+  }
+`;
+
 export const APPROVE_LEAVE_REQUEST_MUTATION = gql`
   mutation ApproveLeaveRequest($organizationId: String!, $id: String!) {
     approveLeaveRequest(organizationId: $organizationId, id: $id) {

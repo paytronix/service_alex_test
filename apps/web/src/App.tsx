@@ -6,6 +6,7 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CatalogsPage } from "./pages/CatalogsPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
+import { SchedulerPage } from "./pages/SchedulerPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export function App() {
@@ -36,6 +37,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <EmployeesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/schedule"
+        element={
+          <ProtectedRoute>
+            <SchedulerPage />
           </ProtectedRoute>
         }
       />

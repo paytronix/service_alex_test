@@ -64,7 +64,7 @@ export class ShiftRequirementService {
         entity: "ShiftRequirement",
         meta: { scheduleId, date: normalizedDate.toISOString().slice(0, 10), shiftTemplateId, roleId },
       });
-      throw new Error("Shift requirement deleted");
+      return null;
     }
     const requirement = await prisma.shiftRequirement.upsert({
       where: { scheduleId_date_shiftTemplateId_roleId: key },

@@ -93,6 +93,9 @@ export function DashboardPage() {
             <Link to="/employees" className="text-sm text-primary-600 hover:underline">
               Employees
             </Link>
+            <Link to="/schedule" className="text-sm text-primary-600 hover:underline">
+              Schedule
+            </Link>
             <Link to="/settings/catalogs" className="text-sm text-primary-600 hover:underline">
               Catalogs
             </Link>

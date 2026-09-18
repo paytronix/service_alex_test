@@ -176,7 +176,6 @@ builder.queryField("validateAssignment", (t) =>
         ...args.input,
         date: toDateOnly(args.input.date),
         roleId: args.input.roleId ?? null,
-        requiredSkillIds: [],
       });
     },
   }),
@@ -216,6 +215,24 @@ builder.mutationField("publishSchedule", (t) =>
   }),
 );
 
+builder.mutationField("reopenSchedule", (t) =>
+  t.field({
+    type: ScheduleType,
+    authScopes: { authenticated: true },
+    args: {
+      organizationId: t.arg.string({ required: true }),
+      id: t.arg.string({ required: true }),
+    },
+    resolve: async (_root, args, ctx) => {
+      const userId = requireUser(ctx);
+      await requireManager(ctx, args.organizationId);
+      const schedule = await scheduleService.reopen(args.organizationId, userId, args.id);
+      await pubsub.publish(`${SCHEDULE_UPDATED}_${args.organizationId}`, args.organizationId);
+      return schedule;
+    },
+  }),
+);
+
 builder.mutationField("assignShift", (t) =>
   t.field({
     type: ShiftMutationResultType,
@@ -240,47 +257,95 @@ builder.mutationField("assignShift", (t) =>
   }),
 );
 
-for (const field of ["moveShift", "updateShift"] as const) {
-  builder.mutationField(field, (t) =>
-    t.field({
-        type: ShiftMutationResultType,
-        authScopes: { authenticated: true },
-      args: {
-        organizationId: t.arg.string({ required: true }),
-        id: t.arg.string({ required: true }),
-        date: t.arg({ type: "DateTime", required: false }),
-        employeeId: t.arg.string({ required: false }),
-        shiftTemplateId: t.arg.string({ required: false }),
-        roleId: t.arg.string({ required: false }),
-        startTime: t.arg.string({ required: false }),
-        endTime: t.arg.string({ required: false }),
-        breakMinutes: t.arg.int({ required: false }),
-        notes: t.arg.string({ required: false }),
-      },
-      resolve: async (_root, args, ctx) => {
-        const userId = requireUser(ctx);
-        const existing = await assignmentService.getById(args.organizationId, args.id);
-        await requireSchedulingAccess(ctx, args.organizationId, [
-          existing.employeeId,
-          ...(args.employeeId ? [args.employeeId] : []),
-        ]);
-        const input = {
-          date: args.date ?? undefined,
-          employeeId: args.employeeId ?? undefined,
-          shiftTemplateId: args.shiftTemplateId ?? undefined,
-          roleId: args.roleId ?? undefined,
-          startTime: args.startTime ?? undefined,
-          endTime: args.endTime ?? undefined,
-          breakMinutes: args.breakMinutes ?? undefined,
-          notes: args.notes ?? undefined,
-        };
-        return field === "moveShift"
-          ? assignmentService.move(args.organizationId, userId, args.id, input)
-          : assignmentService.update(args.organizationId, userId, args.id, input);
-      },
-    }),
-  );
+function shiftUpdateInput(args: {
+  date?: Date | null;
+  employeeId?: string | null;
+  shiftTemplateId?: string | null;
+  roleId?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  breakMinutes?: number | null;
+  notes?: string | null;
+}) {
+  return {
+    date: args.date ?? undefined,
+    employeeId: args.employeeId ?? undefined,
+    shiftTemplateId: args.shiftTemplateId ?? undefined,
+    roleId: args.roleId ?? undefined,
+    startTime: args.startTime ?? undefined,
+    endTime: args.endTime ?? undefined,
+    breakMinutes: args.breakMinutes ?? undefined,
+    notes: args.notes ?? undefined,
+  };
 }
+
+async function resolveShiftUpdate(
+  action: "move" | "update",
+  args: {
+    organizationId: string;
+    id: string;
+    date?: Date | null;
+    employeeId?: string | null;
+    shiftTemplateId?: string | null;
+    roleId?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    breakMinutes?: number | null;
+    notes?: string | null;
+  },
+  ctx: GraphQLContext,
+) {
+  const userId = requireUser(ctx);
+  const existing = await assignmentService.getById(args.organizationId, args.id);
+  await requireSchedulingAccess(ctx, args.organizationId, [
+    existing.employeeId,
+    ...(args.employeeId ? [args.employeeId] : []),
+  ]);
+  const input = shiftUpdateInput(args);
+  return action === "move"
+    ? assignmentService.move(args.organizationId, userId, args.id, input)
+    : assignmentService.update(args.organizationId, userId, args.id, input);
+}
+
+builder.mutationField("moveShift", (t) =>
+  t.field({
+    type: ShiftMutationResultType,
+    authScopes: { authenticated: true },
+    args: {
+      organizationId: t.arg.string({ required: true }),
+      id: t.arg.string({ required: true }),
+      date: t.arg({ type: "DateTime", required: false }),
+      employeeId: t.arg.string({ required: false }),
+      shiftTemplateId: t.arg.string({ required: false }),
+      roleId: t.arg.string({ required: false }),
+      startTime: t.arg.string({ required: false }),
+      endTime: t.arg.string({ required: false }),
+      breakMinutes: t.arg.int({ required: false }),
+      notes: t.arg.string({ required: false }),
+    },
+    resolve: (_root, args, ctx) => resolveShiftUpdate("move", args, ctx),
+  }),
+);
+
+builder.mutationField("updateShift", (t) =>
+  t.field({
+    type: ShiftMutationResultType,
+    authScopes: { authenticated: true },
+    args: {
+      organizationId: t.arg.string({ required: true }),
+      id: t.arg.string({ required: true }),
+      date: t.arg({ type: "DateTime", required: false }),
+      employeeId: t.arg.string({ required: false }),
+      shiftTemplateId: t.arg.string({ required: false }),
+      roleId: t.arg.string({ required: false }),
+      startTime: t.arg.string({ required: false }),
+      endTime: t.arg.string({ required: false }),
+      breakMinutes: t.arg.int({ required: false }),
+      notes: t.arg.string({ required: false }),
+    },
+    resolve: (_root, args, ctx) => resolveShiftUpdate("update", args, ctx),
+  }),
+);
 
 builder.mutationField("copyShift", (t) =>
   t.field({
@@ -324,6 +389,7 @@ builder.mutationField("removeShift", (t) =>
 builder.mutationField("setShiftRequirement", (t) =>
   t.field({
     type: ShiftRequirementType,
+    nullable: true,
     authScopes: { authenticated: true },
     args: {
       organizationId: t.arg.string({ required: true }),

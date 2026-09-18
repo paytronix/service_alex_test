@@ -132,4 +132,26 @@ export class ScheduleService {
     });
     return result;
   }
+
+  async reopen(organizationId: string, userId: string, id: string) {
+    const schedule = await this.getById(organizationId, id);
+    if (!schedule) throw new Error("Schedule not found");
+    if (schedule.status !== ScheduleStatus.PUBLISHED) {
+      throw new Error("Only published schedules can be reopened");
+    }
+    const reopened = await prisma.schedule.update({
+      where: { id },
+      data: { status: ScheduleStatus.DRAFT },
+      include: { assignments: true, requirements: true },
+    });
+    await auditService.log({
+      userId,
+      organizationId,
+      action: "SCHEDULE_REOPENED",
+      entity: "Schedule",
+      entityId: id,
+      meta: { version: schedule.version },
+    });
+    return reopened;
+  }
 }
