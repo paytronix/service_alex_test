@@ -3,13 +3,17 @@ import type {
   Availability,
   Department,
   EmployeeSkill,
+  Employee,
   Role,
   Skill,
+  ShiftTemplate,
 } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export interface Loaders {
+  employee: DataLoader<string, Employee | null>;
   role: DataLoader<string, Role | null>;
+  shiftTemplate: DataLoader<string, ShiftTemplate | null>;
   department: DataLoader<string, Department | null>;
   skill: DataLoader<string, Skill | null>;
   employeeSkills: DataLoader<string, EmployeeSkill[]>;
@@ -34,8 +38,14 @@ function byId<T extends { id: string }>(rows: T[], ids: readonly string[]): (T |
 
 export function createLoaders(): Loaders {
   return {
+    employee: new DataLoader(async (ids) =>
+      byId(await prisma.employee.findMany({ where: { id: { in: [...ids] } } }), ids),
+    ),
     role: new DataLoader(async (ids) =>
       byId(await prisma.role.findMany({ where: { id: { in: [...ids] } } }), ids),
+    ),
+    shiftTemplate: new DataLoader(async (ids) =>
+      byId(await prisma.shiftTemplate.findMany({ where: { id: { in: [...ids] } } }), ids),
     ),
     department: new DataLoader(async (ids) =>
       byId(await prisma.department.findMany({ where: { id: { in: [...ids] } } }), ids),

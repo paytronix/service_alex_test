@@ -146,6 +146,141 @@ async function main() {
     create: { employeeId: liam.id, skillId: grill.id, level: 2 },
   });
 
+  const morningTemplate = await prisma.shiftTemplate.upsert({
+    where: { name_organizationId: { name: "Morning", organizationId: organization.id } },
+    update: { roleId: barista.id, startTime: "08:00", endTime: "16:00", breakMinutes: 30 },
+    create: {
+      name: "Morning",
+      organizationId: organization.id,
+      roleId: barista.id,
+      startTime: "08:00",
+      endTime: "16:00",
+      breakMinutes: 30,
+    },
+  });
+  const nightTemplate = await prisma.shiftTemplate.upsert({
+    where: { name_organizationId: { name: "Night", organizationId: organization.id } },
+    update: { roleId: cook.id, startTime: "22:00", endTime: "06:00", breakMinutes: 30 },
+    create: {
+      name: "Night",
+      organizationId: organization.id,
+      roleId: cook.id,
+      startTime: "22:00",
+      endTime: "06:00",
+      crossesMidnight: true,
+      breakMinutes: 30,
+    },
+  });
+
+  const now = new Date();
+  const monday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)),
+  );
+  const schedule = await prisma.schedule.upsert({
+    where: {
+      organizationId_weekStartDate: {
+        organizationId: organization.id,
+        weekStartDate: monday,
+      },
+    },
+    update: {},
+    create: { organizationId: organization.id, weekStartDate: monday },
+  });
+
+  const assignmentDate = monday;
+  const existingEmmaAssignment = await prisma.shiftAssignment.findFirst({
+    where: { scheduleId: schedule.id, employeeId: emma.id, date: assignmentDate },
+  });
+  if (existingEmmaAssignment) {
+    await prisma.shiftAssignment.update({
+      where: { id: existingEmmaAssignment.id },
+      data: {
+        organizationId: organization.id,
+        shiftTemplateId: morningTemplate.id,
+        roleId: barista.id,
+        breakMinutes: morningTemplate.breakMinutes,
+      },
+    });
+  } else {
+    await prisma.shiftAssignment.create({
+      data: {
+        scheduleId: schedule.id,
+        organizationId: organization.id,
+        employeeId: emma.id,
+        shiftTemplateId: morningTemplate.id,
+        roleId: barista.id,
+        date: assignmentDate,
+        breakMinutes: morningTemplate.breakMinutes,
+      },
+    });
+  }
+  const liamAssignmentDate = new Date(assignmentDate.getTime() + 86400000);
+  const existingLiamAssignment = await prisma.shiftAssignment.findFirst({
+    where: { scheduleId: schedule.id, employeeId: liam.id, date: liamAssignmentDate },
+  });
+  if (existingLiamAssignment) {
+    await prisma.shiftAssignment.update({
+      where: { id: existingLiamAssignment.id },
+      data: {
+        organizationId: organization.id,
+        shiftTemplateId: nightTemplate.id,
+        roleId: cook.id,
+        breakMinutes: nightTemplate.breakMinutes,
+      },
+    });
+  } else {
+    await prisma.shiftAssignment.create({
+      data: {
+        scheduleId: schedule.id,
+        organizationId: organization.id,
+        employeeId: liam.id,
+        shiftTemplateId: nightTemplate.id,
+        roleId: cook.id,
+        date: liamAssignmentDate,
+        breakMinutes: nightTemplate.breakMinutes,
+      },
+    });
+  }
+
+  await prisma.shiftRequirement.upsert({
+    where: {
+      scheduleId_date_shiftTemplateId_roleId: {
+        scheduleId: schedule.id,
+        date: assignmentDate,
+        shiftTemplateId: morningTemplate.id,
+        roleId: barista.id,
+      },
+    },
+    update: { organizationId: organization.id, requiredCount: 2 },
+    create: {
+      organizationId: organization.id,
+      scheduleId: schedule.id,
+      date: assignmentDate,
+      shiftTemplateId: morningTemplate.id,
+      roleId: barista.id,
+      requiredCount: 2,
+    },
+  });
+  await prisma.shiftRequirement.upsert({
+    where: {
+      scheduleId_date_shiftTemplateId_roleId: {
+        scheduleId: schedule.id,
+        date: assignmentDate,
+        shiftTemplateId: morningTemplate.id,
+        roleId: cook.id,
+      },
+    },
+    update: { organizationId: organization.id, requiredCount: 1 },
+    create: {
+      organizationId: organization.id,
+      scheduleId: schedule.id,
+      date: assignmentDate,
+      shiftTemplateId: morningTemplate.id,
+      roleId: cook.id,
+      requiredCount: 1,
+    },
+  });
+
   const availability = [
     { dayOfWeek: 0, type: AvailabilityType.UNAVAILABLE, availableFrom: null },
     { dayOfWeek: 1, type: AvailabilityType.AVAILABLE, availableFrom: null },
