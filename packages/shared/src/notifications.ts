@@ -9,11 +9,22 @@ export enum NotificationType {
   SWAP_APPROVED = "SWAP_APPROVED",
   SWAP_REJECTED = "SWAP_REJECTED",
   SHIFT_COMMENT_ADDED = "SHIFT_COMMENT_ADDED",
+  TIME_ENTRY_ADJUSTED = "TIME_ENTRY_ADJUSTED",
+  TIME_ENTRY_APPROVED = "TIME_ENTRY_APPROVED",
+  OPEN_SHIFT_PUBLISHED = "OPEN_SHIFT_PUBLISHED",
+  OPEN_SHIFT_CLAIMED = "OPEN_SHIFT_CLAIMED",
+  OPEN_SHIFT_CLAIM_APPROVED = "OPEN_SHIFT_CLAIM_APPROVED",
+  OPEN_SHIFT_CLAIM_REJECTED = "OPEN_SHIFT_CLAIM_REJECTED",
+  CERTIFICATION_EXPIRING = "CERTIFICATION_EXPIRING",
+  CERTIFICATION_EXPIRED = "CERTIFICATION_EXPIRED",
+  SUBSCRIPTION_UPDATED = "SUBSCRIPTION_UPDATED",
 }
 
 export enum NotificationChannel {
   EMAIL = "EMAIL",
   IN_APP = "IN_APP",
+  TELEGRAM = "TELEGRAM",
+  SLACK = "SLACK",
 }
 
 export enum NotificationStatus {
@@ -63,6 +74,34 @@ export enum AuditAction {
   CALENDAR_CREATED = "CALENDAR_CREATED",
   CALENDAR_UPDATED = "CALENDAR_UPDATED",
   CALENDAR_DELETED = "CALENDAR_DELETED",
+  TIME_ENTRY_CLOCKED_IN = "TIME_ENTRY_CLOCKED_IN",
+  TIME_ENTRY_CLOCKED_OUT = "TIME_ENTRY_CLOCKED_OUT",
+  TIME_ENTRY_ADJUSTED = "TIME_ENTRY_ADJUSTED",
+  TIME_ENTRY_APPROVED = "TIME_ENTRY_APPROVED",
+  PAY_PERIOD_OPENED = "PAY_PERIOD_OPENED",
+  PAY_PERIOD_LOCKED = "PAY_PERIOD_LOCKED",
+  PAYROLL_EXPORTED = "PAYROLL_EXPORTED",
+  OPEN_SHIFT_PUBLISHED = "OPEN_SHIFT_PUBLISHED",
+  OPEN_SHIFT_CANCELLED = "OPEN_SHIFT_CANCELLED",
+  OPEN_SHIFT_CLAIMED = "OPEN_SHIFT_CLAIMED",
+  OPEN_SHIFT_CLAIM_WITHDRAWN = "OPEN_SHIFT_CLAIM_WITHDRAWN",
+  OPEN_SHIFT_CLAIM_APPROVED = "OPEN_SHIFT_CLAIM_APPROVED",
+  OPEN_SHIFT_CLAIM_REJECTED = "OPEN_SHIFT_CLAIM_REJECTED",
+  WEBHOOK_CREATED = "WEBHOOK_CREATED",
+  WEBHOOK_UPDATED = "WEBHOOK_UPDATED",
+  WEBHOOK_DELETED = "WEBHOOK_DELETED",
+  CALENDAR_FEED_TOKEN_CREATED = "CALENDAR_FEED_TOKEN_CREATED",
+  CALENDAR_FEED_TOKEN_REVOKED = "CALENDAR_FEED_TOKEN_REVOKED",
+  INTEGRATION_CONNECTED = "INTEGRATION_CONNECTED",
+  INTEGRATION_UPDATED = "INTEGRATION_UPDATED",
+  INTEGRATION_DISCONNECTED = "INTEGRATION_DISCONNECTED",
+  EMPLOYEE_DOCUMENT_UPLOADED = "EMPLOYEE_DOCUMENT_UPLOADED",
+  EMPLOYEE_DOCUMENT_DELETED = "EMPLOYEE_DOCUMENT_DELETED",
+  CERTIFICATION_CREATED = "CERTIFICATION_CREATED",
+  CERTIFICATION_UPDATED = "CERTIFICATION_UPDATED",
+  CERTIFICATION_DELETED = "CERTIFICATION_DELETED",
+  SUBSCRIPTION_CHECKOUT_STARTED = "SUBSCRIPTION_CHECKOUT_STARTED",
+  SUBSCRIPTION_UPDATED = "SUBSCRIPTION_UPDATED",
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -76,6 +115,15 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.SWAP_APPROVED]: "Shift swap approved",
   [NotificationType.SWAP_REJECTED]: "Shift swap rejected",
   [NotificationType.SHIFT_COMMENT_ADDED]: "New shift comment",
+  [NotificationType.TIME_ENTRY_ADJUSTED]: "Time entry adjusted",
+  [NotificationType.TIME_ENTRY_APPROVED]: "Time entry approved",
+  [NotificationType.OPEN_SHIFT_PUBLISHED]: "Open shift published",
+  [NotificationType.OPEN_SHIFT_CLAIMED]: "Open shift claimed",
+  [NotificationType.OPEN_SHIFT_CLAIM_APPROVED]: "Open shift claim approved",
+  [NotificationType.OPEN_SHIFT_CLAIM_REJECTED]: "Open shift claim rejected",
+  [NotificationType.CERTIFICATION_EXPIRING]: "Certification expiring",
+  [NotificationType.CERTIFICATION_EXPIRED]: "Certification expired",
+  [NotificationType.SUBSCRIPTION_UPDATED]: "Subscription updated",
 };
 
 export interface NotificationDto {
@@ -136,6 +184,17 @@ export const DomainEventName = {
   ShiftSwapApproved: "shiftSwap.approved",
   ShiftSwapRejected: "shiftSwap.rejected",
   ShiftCommentAdded: "shiftComment.added",
+  TimeEntryClockedIn: "timeEntry.clockedIn",
+  TimeEntryClosed: "timeEntry.closed",
+  TimeEntryAdjusted: "timeEntry.adjusted",
+  TimeEntryApproved: "timeEntry.approved",
+  OpenShiftPublished: "openShift.published",
+  OpenShiftClaimed: "openShift.claimed",
+  OpenShiftClaimApproved: "openShift.claimApproved",
+  OpenShiftClaimRejected: "openShift.claimRejected",
+  CertificationExpiring: "certification.expiring",
+  CertificationExpired: "certification.expired",
+  SubscriptionUpdated: "subscription.updated",
 } as const;
 
 export type DomainEventName = (typeof DomainEventName)[keyof typeof DomainEventName];
@@ -203,6 +262,64 @@ export interface ShiftCommentEventPayload {
   recipientEmployeeIds: string[];
 }
 
+export interface TimeEntryEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  timeEntryId: string;
+  employeeId: string;
+  shiftAssignmentId?: string | null;
+  clockInAt: string;
+  clockOutAt?: string | null;
+  minutesWorked: number;
+  status: string;
+  source: string;
+}
+
+export interface OpenShiftEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  openShiftId: string;
+  scheduleId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  roleId: string;
+  locationId?: string | null;
+  requiredCount: number;
+  status: string;
+  eligibleEmployeeIds?: string[];
+}
+
+export interface OpenShiftClaimEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  openShiftId: string;
+  claimId: string;
+  employeeId: string;
+  date: string;
+  status: string;
+  assignmentId?: string | null;
+}
+
+export interface CertificationEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  certificationId: string;
+  employeeId: string;
+  name: string;
+  status: string;
+  expiresAt?: string | null;
+}
+
+export interface SubscriptionEventPayload {
+  organizationId: string;
+  actorId?: string | null;
+  subscriptionId: string;
+  plan: string;
+  status: string;
+  currentPeriodEnd?: string | null;
+}
+
 export interface DomainEventPayloads {
   "shift.assigned": ShiftEventPayload;
   "shift.changed": ShiftEventPayload;
@@ -214,4 +331,15 @@ export interface DomainEventPayloads {
   "shiftSwap.approved": ShiftSwapEventPayload;
   "shiftSwap.rejected": ShiftSwapEventPayload;
   "shiftComment.added": ShiftCommentEventPayload;
+  "timeEntry.clockedIn": TimeEntryEventPayload;
+  "timeEntry.closed": TimeEntryEventPayload;
+  "timeEntry.adjusted": TimeEntryEventPayload;
+  "timeEntry.approved": TimeEntryEventPayload;
+  "openShift.published": OpenShiftEventPayload;
+  "openShift.claimed": OpenShiftClaimEventPayload;
+  "openShift.claimApproved": OpenShiftClaimEventPayload;
+  "openShift.claimRejected": OpenShiftClaimEventPayload;
+  "certification.expiring": CertificationEventPayload;
+  "certification.expired": CertificationEventPayload;
+  "subscription.updated": SubscriptionEventPayload;
 }

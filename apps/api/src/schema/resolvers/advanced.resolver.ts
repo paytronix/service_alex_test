@@ -15,6 +15,7 @@ import {
 } from "../types/advanced";
 import { GraphQLContext, requireManager, requireMember, requireRole } from "../../middleware/auth";
 import { attachmentService } from "../../services/attachment.service";
+import { billingService } from "../../services/billing.service";
 import { bulkShiftService } from "../../services/bulk-shift.service";
 import { calendarService } from "../../services/calendar.service";
 import { locationService } from "../../services/location.service";
@@ -102,6 +103,7 @@ builder.mutationField("createLocation", (t) =>
     resolve: async (_root, args, ctx) => {
       const userId = requireUser(ctx);
       await requireManager(ctx, args.organizationId);
+      await billingService.assertCanAddLocation(args.organizationId);
       return locationService.create(args.organizationId, userId, {
         name: args.name,
         timezone: args.timezone ?? undefined,

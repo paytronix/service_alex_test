@@ -10,6 +10,7 @@ import "./types/schedule-history";
 import "./types/notification";
 import "./types/report";
 import "./types/advanced";
+import "./types/operations";
 
 import "./resolvers/auth.resolver";
 import "./resolvers/organization.resolver";
@@ -21,5 +22,6 @@ import "./resolvers/notification.resolver";
 import "./resolvers/subscription.resolver";
 import "./resolvers/report.resolver";
 import "./resolvers/advanced.resolver";
+import "./resolvers/operations.resolver";
 
 export const schema = builder.toSchema();

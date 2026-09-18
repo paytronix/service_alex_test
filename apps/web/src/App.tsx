@@ -10,6 +10,11 @@ import { SchedulerPage } from "./pages/SchedulerPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { TimeClockPage } from "./pages/TimeClockPage";
+import { LaborCostPage } from "./pages/LaborCostPage";
+import { OpenShiftsPage } from "./pages/OpenShiftsPage";
+import { IntegrationsPage } from "./pages/IntegrationsPage";
+import { BillingPage } from "./pages/BillingPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export function App() {
@@ -72,6 +77,46 @@ export function App() {
         element={
           <ProtectedRoute>
             <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/time-clock"
+        element={
+          <ProtectedRoute>
+            <TimeClockPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/labor-cost"
+        element={
+          <ProtectedRoute>
+            <LaborCostPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/open-shifts"
+        element={
+          <ProtectedRoute>
+            <OpenShiftsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/integrations"
+        element={
+          <ProtectedRoute>
+            <IntegrationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/billing"
+        element={
+          <ProtectedRoute>
+            <BillingPage />
           </ProtectedRoute>
         }
       />

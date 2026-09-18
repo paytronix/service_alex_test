@@ -77,3 +77,69 @@ export class InAppChannel implements NotificationChannelSender {
     await this.publish(notification);
   }
 }
+
+/** Configuration resolved per organization from `IntegrationConnection`. */
+export interface ChatIntegrationConfig {
+  active: boolean;
+  config: Record<string, unknown>;
+}
+
+export type ChatIntegrationResolver = (
+  organizationId: string,
+) => Promise<ChatIntegrationConfig | null>;
+
+async function postJson(url: string, body: unknown): Promise<void> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) {
+    throw new Error(`Chat delivery failed with HTTP ${response.status}`);
+  }
+}
+
+/**
+ * Telegram delivery through the Bot API. The bot token comes from the
+ * organization connection, falling back to `TELEGRAM_BOT_TOKEN`; the chat id is
+ * taken from the connection (`chatId`) so notifications land in a shared chat.
+ */
+export class TelegramChannel implements NotificationChannelSender {
+  readonly channel = NotificationChannel.TELEGRAM;
+
+  constructor(private readonly resolve: ChatIntegrationResolver) {}
+
+  async send(notification: OutgoingNotification): Promise<void> {
+    const connection = await this.resolve(notification.organizationId);
+    if (!connection?.active) throw new Error("Telegram integration is not connected");
+    const botToken =
+      (connection.config.botToken as string | undefined) || process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = connection.config.chatId as string | undefined;
+    if (!botToken || !chatId) throw new Error("Telegram integration is missing botToken or chatId");
+    await postJson(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      chat_id: chatId,
+      text: `*${notification.title}*\n${notification.body}`,
+      parse_mode: "Markdown",
+    });
+  }
+}
+
+/** Slack delivery through an incoming webhook URL stored on the connection. */
+export class SlackChannel implements NotificationChannelSender {
+  readonly channel = NotificationChannel.SLACK;
+
+  constructor(private readonly resolve: ChatIntegrationResolver) {}
+
+  async send(notification: OutgoingNotification): Promise<void> {
+    const connection = await this.resolve(notification.organizationId);
+    if (!connection?.active) throw new Error("Slack integration is not connected");
+    const webhookUrl =
+      (connection.config.webhookUrl as string | undefined) || process.env.SLACK_WEBHOOK_URL;
+    if (!webhookUrl) throw new Error("Slack integration is missing webhookUrl");
+    await postJson(webhookUrl, {
+      text: `*${notification.title}*\n${notification.body}`,
+      ...(connection.config.channel ? { channel: connection.config.channel } : {}),
+    });
+  }
+}

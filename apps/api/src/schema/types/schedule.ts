@@ -36,6 +36,9 @@ export const ViolationCodeEnum = builder.enumType("ViolationCode", {
     "UNAVAILABLE",
     "AVAILABLE_AFTER_CONFLICT",
     "MAX_CONSECUTIVE_SHIFTS",
+    "CERTIFICATION_MISSING",
+    "CERTIFICATION_EXPIRED",
+    "CERTIFICATION_EXPIRING",
   ] as const,
 });
 

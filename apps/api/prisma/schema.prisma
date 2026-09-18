@@ -25,17 +25,21 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  memberships      Membership[]
-  auditLogs        AuditLog[]     @relation("AuditUser")
-  shiftComments    ShiftComment[] @relation("ShiftCommentAuthor")
-  uploadedAttachments Attachment[] @relation("AttachmentUploader")
-  reviewedSwaps    ShiftSwapRequest[] @relation("ShiftSwapReviewer")
-  employeeProfiles Employee[]
-  reviewedLeaves   LeaveRequest[] @relation("LeaveReviewer")
-  publishedSchedules Schedule[] @relation("SchedulePublisher")
-  scheduleVersions  ScheduleVersion[] @relation("ScheduleVersionPublisher")
-  notifications    Notification[]  @relation("NotificationRecipient")
-  shiftChanges     ShiftAssignmentHistory[] @relation("ShiftHistoryActor")
+  memberships         Membership[]
+  auditLogs           AuditLog[]               @relation("AuditUser")
+  shiftComments       ShiftComment[]           @relation("ShiftCommentAuthor")
+  uploadedAttachments Attachment[]             @relation("AttachmentUploader")
+  reviewedSwaps       ShiftSwapRequest[]       @relation("ShiftSwapReviewer")
+  employeeProfiles    Employee[]
+  reviewedLeaves      LeaveRequest[]           @relation("LeaveReviewer")
+  publishedSchedules  Schedule[]               @relation("SchedulePublisher")
+  scheduleVersions    ScheduleVersion[]        @relation("ScheduleVersionPublisher")
+  notifications       Notification[]           @relation("NotificationRecipient")
+  shiftChanges        ShiftAssignmentHistory[] @relation("ShiftHistoryActor")
+  approvedTimeEntries TimeEntry[]              @relation("TimeEntryApprover")
+  lockedPayPeriods    PayPeriod[]              @relation("PayPeriodLocker")
+  reviewedClaims      OpenShiftClaim[]         @relation("OpenShiftClaimReviewer")
+  uploadedDocuments   EmployeeDocument[]       @relation("EmployeeDocumentUploader")
 
   @@map("users")
 }
@@ -58,28 +62,40 @@ model Organization {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  memberships    Membership[]
-  departments    Department[]
-  roles          Role[]
-  skills         Skill[]
-  employees      Employee[]
-  shiftTemplates ShiftTemplate[]
-  schedules      Schedule[]
-  invitations    Invitation[]
-  auditLogs      AuditLog[]
-  notifications  Notification[]
-  leaveRequests  LeaveRequest[]
-  shiftAssignments ShiftAssignment[]
-  shiftRequirements ShiftRequirement[]
-  scheduleVersions ScheduleVersion[]
-  shiftHistory     ShiftAssignmentHistory[]
-  locations        Location[]
-  calendars        Calendar[]
-  weekTemplates    WeekTemplate[]
-  recurringRules   RecurringShiftRule[]
-  shiftSwapRequests ShiftSwapRequest[]
-  shiftComments    ShiftComment[]
-  attachments      Attachment[]
+  memberships            Membership[]
+  departments            Department[]
+  roles                  Role[]
+  skills                 Skill[]
+  employees              Employee[]
+  shiftTemplates         ShiftTemplate[]
+  schedules              Schedule[]
+  invitations            Invitation[]
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+  leaveRequests          LeaveRequest[]
+  shiftAssignments       ShiftAssignment[]
+  shiftRequirements      ShiftRequirement[]
+  scheduleVersions       ScheduleVersion[]
+  shiftHistory           ShiftAssignmentHistory[]
+  locations              Location[]
+  calendars              Calendar[]
+  weekTemplates          WeekTemplate[]
+  recurringRules         RecurringShiftRule[]
+  shiftSwapRequests      ShiftSwapRequest[]
+  shiftComments          ShiftComment[]
+  attachments            Attachment[]
+  timeEntries            TimeEntry[]
+  payPeriods             PayPeriod[]
+  openShifts             OpenShift[]
+  openShiftClaims        OpenShiftClaim[]
+  webhooks               Webhook[]
+  webhookDeliveries      WebhookDelivery[]
+  calendarFeedTokens     CalendarFeedToken[]
+  integrationConnections IntegrationConnection[]
+  employeeDocuments      EmployeeDocument[]
+  certifications         Certification[]
+  subscription           Subscription?
+  invoices               Invoice[]
 
   @@map("organizations")
 }
@@ -144,22 +160,25 @@ model Department {
 // ─── Roles (job roles within org) ────────────────────────────
 
 model Role {
-  id             String   @id @default(uuid())
-  name           String
-  description    String?
-  color          String   @default("#3B82F6")
-  maxLoad        Int?
-  hourlyRate     Decimal?
-  organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                     String   @id @default(uuid())
+  name                   String
+  description            String?
+  color                  String   @default("#3B82F6")
+  maxLoad                Int?
+  hourlyRate             Decimal?
+  /// Certification names required to work this role.
+  requiredCertifications String[] @default([])
+  organizationId         String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employees      Employee[]
-  shiftTemplates ShiftTemplate[]
-  shiftAssignments ShiftAssignment[]
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employees         Employee[]
+  shiftTemplates    ShiftTemplate[]
+  shiftAssignments  ShiftAssignment[]
   shiftRequirements ShiftRequirement[]
-  recurringRules RecurringShiftRule[]
+  recurringRules    RecurringShiftRule[]
+  openShifts        OpenShift[]
 
   @@unique([name, organizationId])
   @@map("roles")
@@ -177,6 +196,7 @@ model Skill {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   employeeSkills EmployeeSkill[]
   shiftTemplates ShiftTemplate[] @relation("ShiftTemplateSkills")
+  certifications Certification[]
 
   @@unique([name, organizationId])
   @@map("skills")
@@ -212,18 +232,23 @@ model Employee {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  department       Department?       @relation(fields: [departmentId], references: [id])
-  role             Role?             @relation(fields: [roleId], references: [id])
-  location         Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  skills           EmployeeSkill[]
-  availabilities   Availability[]
-  shiftAssignments ShiftAssignment[]
-  leaveRequests    LeaveRequest[]
-  recurringRules   RecurringShiftRule[]
-  requestedSwaps   ShiftSwapRequest[] @relation("ShiftSwapRequester")
-  targetedSwaps    ShiftSwapRequest[] @relation("ShiftSwapTarget")
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  role               Role?                @relation(fields: [roleId], references: [id])
+  location           Location?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  skills             EmployeeSkill[]
+  availabilities     Availability[]
+  shiftAssignments   ShiftAssignment[]
+  leaveRequests      LeaveRequest[]
+  recurringRules     RecurringShiftRule[]
+  requestedSwaps     ShiftSwapRequest[]   @relation("ShiftSwapRequester")
+  targetedSwaps      ShiftSwapRequest[]   @relation("ShiftSwapTarget")
+  timeEntries        TimeEntry[]
+  openShiftClaims    OpenShiftClaim[]
+  documents          EmployeeDocument[]
+  certifications     Certification[]
+  calendarFeedTokens CalendarFeedToken[]
 
   @@unique([email, organizationId])
   @@unique([userId, organizationId])
@@ -288,12 +313,13 @@ model ShiftTemplate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role           Role?        @relation(fields: [roleId], references: [id])
-  requiredSkills Skill[]      @relation("ShiftTemplateSkills")
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role?                @relation(fields: [roleId], references: [id])
+  requiredSkills Skill[]              @relation("ShiftTemplateSkills")
   assignments    ShiftAssignment[]
   requirements   ShiftRequirement[]
   recurringRules RecurringShiftRule[]
+  openShifts     OpenShift[]
 
   @@unique([name, organizationId])
   @@map("shift_templates")
@@ -320,15 +346,16 @@ model Schedule {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  location     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  calendar     Calendar?         @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location     Location?                @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  calendar     Calendar?                @relation(fields: [calendarId], references: [id], onDelete: SetNull)
   assignments  ShiftAssignment[]
   requirements ShiftRequirement[]
   versions     ScheduleVersion[]
   history      ShiftAssignmentHistory[]
   comments     ShiftComment[]
-  publishedBy  User?            @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  openShifts   OpenShift[]
+  publishedBy  User?                    @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, weekStartDate, locationId, calendarId])
   @@index([organizationId, status])
@@ -364,14 +391,16 @@ model ShiftAssignment {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
-  schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
-  role          Role?         @relation(fields: [roleId], references: [id])
-  calendar      Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
-  comments      ShiftComment[]
-  swapRequests  ShiftSwapRequest[]
+  schedule        Schedule           @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee        Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftTemplate   ShiftTemplate      @relation(fields: [shiftTemplateId], references: [id])
+  role            Role?              @relation(fields: [roleId], references: [id])
+  calendar        Calendar?          @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  comments        ShiftComment[]
+  swapRequests    ShiftSwapRequest[]
+  timeEntries     TimeEntry[]
+  openShiftClaims OpenShiftClaim[]
 
   @@index([scheduleId])
   @@index([employeeId, date])
@@ -395,8 +424,8 @@ model ShiftRequirement {
   organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
-  role          Role           @relation(fields: [roleId], references: [id])
-  location      Location?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  role          Role          @relation(fields: [roleId], references: [id])
+  location      Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   @@unique([scheduleId, date, shiftTemplateId, roleId])
   @@index([organizationId, date])
@@ -505,11 +534,22 @@ enum NotificationType {
   SWAP_APPROVED
   SWAP_REJECTED
   SHIFT_COMMENT_ADDED
+  TIME_ENTRY_ADJUSTED
+  TIME_ENTRY_APPROVED
+  OPEN_SHIFT_PUBLISHED
+  OPEN_SHIFT_CLAIMED
+  OPEN_SHIFT_CLAIM_APPROVED
+  OPEN_SHIFT_CLAIM_REJECTED
+  CERTIFICATION_EXPIRING
+  CERTIFICATION_EXPIRED
+  SUBSCRIPTION_UPDATED
 }
 
 enum NotificationChannel {
   EMAIL
   IN_APP
+  TELEGRAM
+  SLACK
 }
 
 enum NotificationStatus {
@@ -576,12 +616,13 @@ model Location {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  calendars    Calendar[]
-  schedules    Schedule[]
-  employees    Employee[]
-  requirements ShiftRequirement[]
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendars     Calendar[]
+  schedules     Schedule[]
+  employees     Employee[]
+  requirements  ShiftRequirement[]
   weekTemplates WeekTemplate[]
+  openShifts    OpenShift[]
 
   @@unique([name, organizationId])
   @@index([organizationId])
@@ -599,10 +640,10 @@ model Calendar {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  location     Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  schedules    Schedule[]
-  assignments  ShiftAssignment[]
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location      Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  schedules     Schedule[]
+  assignments   ShiftAssignment[]
   weekTemplates WeekTemplate[]
 
   @@unique([name, organizationId])
@@ -722,6 +763,7 @@ enum AttachmentEntityType {
   SHIFT_ASSIGNMENT
   SCHEDULE
   EMPLOYEE
+  EMPLOYEE_DOCUMENT
 }
 
 model Attachment {
@@ -742,4 +784,350 @@ model Attachment {
 
   @@index([organizationId, entityType, entityId])
   @@map("attachments")
+}
+
+// ─── Time tracking ───────────────────────────────────────────
+
+enum TimeEntrySource {
+  WEB
+  QR
+  MANUAL
+}
+
+enum TimeEntryStatus {
+  OPEN
+  CLOSED
+  ADJUSTED
+}
+
+model TimeEntry {
+  id                String          @id @default(uuid())
+  organizationId    String
+  employeeId        String
+  shiftAssignmentId String?
+  clockInAt         DateTime
+  clockOutAt        DateTime?
+  source            TimeEntrySource @default(WEB)
+  status            TimeEntryStatus @default(OPEN)
+  note              String?
+  approvedById      String?
+  approvedAt        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee        Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftAssignment ShiftAssignment? @relation(fields: [shiftAssignmentId], references: [id], onDelete: SetNull)
+  approvedBy      User?            @relation("TimeEntryApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, clockInAt])
+  @@index([employeeId, clockInAt])
+  @@index([organizationId, status])
+  @@map("time_entries")
+}
+
+// ─── Pay periods ─────────────────────────────────────────────
+
+enum PayPeriodStatus {
+  OPEN
+  LOCKED
+}
+
+model PayPeriod {
+  id             String          @id @default(uuid())
+  organizationId String
+  from           DateTime        @db.Date
+  to             DateTime        @db.Date
+  status         PayPeriodStatus @default(OPEN)
+  lockedAt       DateTime?
+  lockedById     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lockedBy     User?        @relation("PayPeriodLocker", fields: [lockedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, from, to])
+  @@index([organizationId, status])
+  @@map("pay_periods")
+}
+
+// ─── Open shift marketplace ──────────────────────────────────
+
+enum OpenShiftStatus {
+  OPEN
+  FILLED
+  CANCELLED
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+model OpenShift {
+  id              String          @id @default(uuid())
+  organizationId  String
+  scheduleId      String
+  locationId      String?
+  date            DateTime        @db.Date
+  shiftTemplateId String
+  roleId          String
+  requiredCount   Int             @default(1)
+  filledCount     Int             @default(0)
+  status          OpenShiftStatus @default(OPEN)
+  note            String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule      Schedule         @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  location      Location?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  shiftTemplate ShiftTemplate    @relation(fields: [shiftTemplateId], references: [id])
+  role          Role             @relation(fields: [roleId], references: [id])
+  claims        OpenShiftClaim[]
+
+  @@index([organizationId, status, date])
+  @@index([scheduleId, date])
+  @@map("open_shifts")
+}
+
+model OpenShiftClaim {
+  id             String      @id @default(uuid())
+  organizationId String
+  openShiftId    String
+  employeeId     String
+  status         ClaimStatus @default(PENDING)
+  message        String?
+  assignmentId   String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  openShift    OpenShift        @relation(fields: [openShiftId], references: [id], onDelete: Cascade)
+  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignment   ShiftAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  reviewedBy   User?            @relation("OpenShiftClaimReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([openShiftId, employeeId])
+  @@index([organizationId, status])
+  @@index([employeeId, status])
+  @@map("open_shift_claims")
+}
+
+// ─── Integrations ────────────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Webhook {
+  id             String   @id @default(uuid())
+  organizationId String
+  url            String
+  events         String[] @default([])
+  secret         String
+  description    String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId, active])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid())
+  organizationId String
+  webhookId      String
+  event          String
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  responseCode   Int?
+  error          String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  webhook      Webhook      @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+  @@index([organizationId, status])
+  @@map("webhook_deliveries")
+}
+
+enum CalendarFeedScope {
+  EMPLOYEE
+  ORGANIZATION
+}
+
+model CalendarFeedToken {
+  id             String            @id @default(uuid())
+  organizationId String
+  employeeId     String?
+  token          String            @unique
+  scope          CalendarFeedScope @default(EMPLOYEE)
+  revokedAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee?    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, scope])
+  @@map("calendar_feed_tokens")
+}
+
+enum IntegrationType {
+  TELEGRAM
+  SLACK
+  GOOGLE_CALENDAR
+}
+
+model IntegrationConnection {
+  id             String          @id @default(uuid())
+  organizationId String
+  type           IntegrationType
+  config         Json            @default("{}")
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@map("integration_connections")
+}
+
+// ─── Employee documents & certifications ─────────────────────
+
+enum EmployeeDocumentType {
+  CONTRACT
+  ID
+  CERTIFICATE
+  MEDICAL
+  OTHER
+}
+
+model EmployeeDocument {
+  id             String               @id @default(uuid())
+  organizationId String
+  employeeId     String
+  type           EmployeeDocumentType @default(OTHER)
+  fileName       String
+  storageKey     String
+  url            String?
+  mimeType       String
+  size           Int
+  uploadedById   String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("EmployeeDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId])
+  @@map("employee_documents")
+}
+
+enum CertificationStatus {
+  VALID
+  EXPIRING
+  EXPIRED
+}
+
+model Certification {
+  id             String              @id @default(uuid())
+  organizationId String
+  employeeId     String
+  skillId        String?
+  name           String
+  issuedAt       DateTime?           @db.Date
+  expiresAt      DateTime?           @db.Date
+  status         CertificationStatus @default(VALID)
+  notifiedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill        Skill?       @relation(fields: [skillId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([employeeId, expiresAt])
+  @@map("certifications")
+}
+
+// ─── Billing ─────────────────────────────────────────────────
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  organizationId       String             @unique
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id               String        @id @default(uuid())
+  organizationId   String
+  stripeInvoiceId  String        @unique
+  number           String?
+  status           InvoiceStatus @default(DRAFT)
+  amountDue        Int           @default(0)
+  amountPaid       Int           @default(0)
+  currency         String        @default("usd")
+  hostedInvoiceUrl String?
+  issuedAt         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, issuedAt])
+  @@map("invoices")
 }

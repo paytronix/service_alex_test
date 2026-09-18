@@ -12,6 +12,7 @@ import {
 import { NotificationBellContainer } from "../components/notifications/NotificationBellContainer";
 import { canViewAuditLog } from "../components/notifications/permissions";
 import { canViewDashboardSummary, canViewReports } from "../components/reports/permissions";
+import { canManageIntegrations, canViewLaborCost } from "../components/operations/permissions";
 import { DashboardSummaryCards } from "../components/reports/DashboardSummaryCards";
 import { RecentChangesList } from "../components/reports/RecentChangesList";
 import type { DashboardSummaryDto } from "@shiftflow/shared";
@@ -128,6 +129,25 @@ export function DashboardPage() {
                 Reports
               </Link>
             )}
+            <Link to="/time-clock" className="text-sm text-primary-600 hover:underline">
+              Time Clock
+            </Link>
+            <Link to="/open-shifts" className="text-sm text-primary-600 hover:underline">
+              Open Shifts
+            </Link>
+            {canViewLaborCost(currentRole) && (
+              <Link to="/labor-cost" className="text-sm text-primary-600 hover:underline">
+                Labor Cost
+              </Link>
+            )}
+            {canManageIntegrations(currentRole) && (
+              <Link to="/settings/integrations" className="text-sm text-primary-600 hover:underline">
+                Integrations
+              </Link>
+            )}
+            <Link to="/settings/billing" className="text-sm text-primary-600 hover:underline">
+              Billing
+            </Link>
             <NotificationBellContainer organizationId={activeOrgId} />
             <span className="text-sm text-gray-600">
               {user?.firstName} {user?.lastName}

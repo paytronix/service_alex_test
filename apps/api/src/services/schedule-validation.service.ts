@@ -7,6 +7,7 @@ import {
 import {
   AvailabilityType,
   CandidateAssignment,
+  CertificationHolding,
   EmployeeStatus,
   LeaveStatus,
   LeaveType,
@@ -64,7 +65,7 @@ export class ScheduleValidationService {
     });
     if (!employee) throw new Error("Employee not found");
 
-    const [organization, template, leaves, schedule] = await Promise.all([
+    const [organization, template, leaves, schedule, role, certifications] = await Promise.all([
       prisma.organization.findUnique({ where: { id: organizationId } }),
       prisma.shiftTemplate.findFirst({
         where: { id: input.shiftTemplateId, organizationId },
@@ -75,6 +76,16 @@ export class ScheduleValidationService {
         select: { startDate: true, endDate: true, status: true, type: true },
       }),
       prisma.schedule.findFirst({ where: { id: input.scheduleId, organizationId } }),
+      input.roleId
+        ? prisma.role.findFirst({
+            where: { id: input.roleId, organizationId },
+            select: { requiredCertifications: true },
+          })
+        : Promise.resolve(null),
+      prisma.certification.findMany({
+        where: { organizationId, employeeId: input.employeeId },
+        select: { name: true, expiresAt: true },
+      }),
     ]);
     if (!organization) throw new Error("Organization not found");
     if (!schedule) throw new Error("Schedule not found");
@@ -136,6 +147,13 @@ export class ScheduleValidationService {
         availableFrom: availability.availableFrom,
       })),
       leaves: leaveWindows,
+      requiredCertifications: role?.requiredCertifications ?? [],
+      certifications: certifications.map(
+        (certification): CertificationHolding => ({
+          name: certification.name,
+          expiresAt: certification.expiresAt ? certification.expiresAt.toISOString() : null,
+        }),
+      ),
       },
     );
   }

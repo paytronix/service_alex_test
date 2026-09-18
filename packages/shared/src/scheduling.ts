@@ -29,6 +29,9 @@ export enum ViolationCode {
   UNAVAILABLE = "UNAVAILABLE",
   AVAILABLE_AFTER_CONFLICT = "AVAILABLE_AFTER_CONFLICT",
   MAX_CONSECUTIVE_SHIFTS = "MAX_CONSECUTIVE_SHIFTS",
+  CERTIFICATION_MISSING = "CERTIFICATION_MISSING",
+  CERTIFICATION_EXPIRED = "CERTIFICATION_EXPIRED",
+  CERTIFICATION_EXPIRING = "CERTIFICATION_EXPIRING",
 }
 
 export interface Violation {
@@ -86,12 +89,25 @@ export interface LeaveWindow {
   type: LeaveType;
 }
 
+/** A certification held by the employee, as seen by the validation engine. */
+export interface CertificationHolding {
+  name: string;
+  expiresAt: string | null;
+}
+
 export interface ValidationContext {
   employee: EmployeeConstraints;
   organizationDefaults: OrganizationDefaults;
   existingAssignments: AssignmentContextItem[];
   availability: AvailabilityDto[];
   leaves: LeaveWindow[];
+  /** Certification names the candidate role requires. */
+  requiredCertifications?: string[];
+  certifications?: CertificationHolding[];
+}
+
+function normalizeCertificationName(name: string): string {
+  return name.trim().toLowerCase();
 }
 
 export interface ScheduleDto {
@@ -212,6 +228,9 @@ export function intervalsOverlap(
 export function hoursBetween(start: Date, end: Date): number {
   return (end.getTime() - start.getTime()) / 3600000;
 }
+
+/** Days before expiry at which an assignment raises a certification warning. */
+export const CERTIFICATION_WARNING_DAYS = 30;
 
 export function paidMinutes(startTime: string, endTime: string, breakMinutes: number): number {
   return Math.max(0, shiftDurationMinutes(startTime, endTime) - breakMinutes);
@@ -377,6 +396,39 @@ export function validateAssignment(
         ViolationLevel.WARNING,
         `This assignment creates ${consecutive} consecutive working days, above the limit of ${ctx.employee.maxConsecutiveShifts}`,
         { consecutiveShifts: consecutive, limit: ctx.employee.maxConsecutiveShifts },
+      );
+    }
+  }
+
+  for (const required of ctx.requiredCertifications ?? []) {
+    const holding = (ctx.certifications ?? []).find(
+      (certification) =>
+        normalizeCertificationName(certification.name) === normalizeCertificationName(required),
+    );
+    if (!holding) {
+      addViolation(
+        ViolationCode.CERTIFICATION_MISSING,
+        ViolationLevel.ERROR,
+        `The employee is missing the required certification "${required}"`,
+        { certification: required },
+      );
+      continue;
+    }
+    if (!holding.expiresAt) continue;
+    const expiry = toDateOnly(holding.expiresAt);
+    if (expiry < candidate.date) {
+      addViolation(
+        ViolationCode.CERTIFICATION_EXPIRED,
+        ViolationLevel.ERROR,
+        `The certification "${required}" expired on ${expiry}`,
+        { certification: required, expiresAt: expiry },
+      );
+    } else if (toDateOnly(addDays(candidate.date, CERTIFICATION_WARNING_DAYS)) >= expiry) {
+      addViolation(
+        ViolationCode.CERTIFICATION_EXPIRING,
+        ViolationLevel.WARNING,
+        `The certification "${required}" expires on ${expiry}`,
+        { certification: required, expiresAt: expiry },
       );
     }
   }

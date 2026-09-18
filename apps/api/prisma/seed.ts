@@ -1,5 +1,6 @@
 import {
   AvailabilityType,
+  CertificationStatus,
   EmployeeStatus,
   LeaveStatus,
   LeaveType,
@@ -8,7 +9,13 @@ import {
   NotificationStatus,
   NotificationType,
   PrismaClient,
+  OpenShiftStatus,
+  PayPeriodStatus,
   ScheduleChangeType,
+  SubscriptionPlan,
+  SubscriptionStatus,
+  TimeEntrySource,
+  TimeEntryStatus,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -479,6 +486,112 @@ async function main() {
       },
     });
   }
+
+  // ── Epic 10: rates, time tracking, open shifts, certifications, billing ──
+
+  await prisma.role.update({
+    where: { id: barista.id },
+    data: { hourlyRate: 18.5 },
+  });
+  await prisma.role.update({
+    where: { id: cook.id },
+    data: { hourlyRate: 21, requiredCertifications: ["Food safety"] },
+  });
+  await prisma.employee.update({ where: { id: emma.id }, data: { hourlyRate: 19.75 } });
+
+  const emmaAssignment = await prisma.shiftAssignment.findFirst({
+    where: { scheduleId: schedule.id, employeeId: emma.id, date: assignmentDate },
+  });
+  const existingTimeEntry = await prisma.timeEntry.findFirst({
+    where: { organizationId: organization.id, employeeId: emma.id },
+  });
+  if (!existingTimeEntry && emmaAssignment) {
+    const clockInAt = new Date(`${assignmentDate.toISOString().slice(0, 10)}T08:07:00.000Z`);
+    const clockOutAt = new Date(`${assignmentDate.toISOString().slice(0, 10)}T16:35:00.000Z`);
+    await prisma.timeEntry.create({
+      data: {
+        organizationId: organization.id,
+        employeeId: emma.id,
+        shiftAssignmentId: emmaAssignment.id,
+        clockInAt,
+        clockOutAt,
+        source: TimeEntrySource.WEB,
+        status: TimeEntryStatus.CLOSED,
+        note: "Late opening, stayed to close",
+      },
+    });
+  }
+
+  const existingPayPeriod = await prisma.payPeriod.findFirst({
+    where: { organizationId: organization.id },
+  });
+  if (!existingPayPeriod) {
+    await prisma.payPeriod.create({
+      data: {
+        organizationId: organization.id,
+        from: monday,
+        to: new Date(monday.getTime() + 13 * 86400000),
+        status: PayPeriodStatus.OPEN,
+      },
+    });
+  }
+
+  const openShiftDate = new Date(assignmentDate.getTime() + 2 * 86400000);
+  const existingOpenShift = await prisma.openShift.findFirst({
+    where: { scheduleId: schedule.id, date: openShiftDate },
+  });
+  if (!existingOpenShift) {
+    await prisma.openShift.create({
+      data: {
+        organizationId: organization.id,
+        scheduleId: schedule.id,
+        date: openShiftDate,
+        shiftTemplateId: morningTemplate.id,
+        roleId: barista.id,
+        locationId: mainLocation.id,
+        requiredCount: 1,
+        status: OpenShiftStatus.OPEN,
+        note: "Extra cover for the market day",
+      },
+    });
+  }
+
+  const existingCertification = await prisma.certification.findFirst({
+    where: { organizationId: organization.id },
+  });
+  if (!existingCertification) {
+    await prisma.certification.createMany({
+      data: [
+        {
+          organizationId: organization.id,
+          employeeId: liam.id,
+          skillId: grill.id,
+          name: "Food safety",
+          issuedAt: new Date("2024-01-10"),
+          expiresAt: new Date(Date.now() + 20 * 86400000),
+          status: CertificationStatus.EXPIRING,
+        },
+        {
+          organizationId: organization.id,
+          employeeId: emma.id,
+          name: "First aid",
+          issuedAt: new Date("2023-06-01"),
+          expiresAt: new Date(Date.now() + 365 * 86400000),
+          status: CertificationStatus.VALID,
+        },
+      ],
+    });
+  }
+
+  await prisma.subscription.upsert({
+    where: { organizationId: organization.id },
+    update: {},
+    create: {
+      organizationId: organization.id,
+      plan: SubscriptionPlan.FREE,
+      status: SubscriptionStatus.ACTIVE,
+    },
+  });
 
   console.log(`Seeded organization ${organization.slug} (password for all users: ${PASSWORD})`);
 }
