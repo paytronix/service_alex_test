@@ -19,6 +19,34 @@ export type {
   LeaveRequestDto,
 } from "./employee";
 export {
+  ViolationLevel,
+  ViolationCode,
+  addDays,
+  startOfWeek,
+  weekDates,
+  isoWeekNumber,
+  toDateOnly,
+  shiftInterval,
+  intervalsOverlap,
+  hoursBetween,
+  paidMinutes,
+  validateAssignment,
+} from "./scheduling";
+export type {
+  Violation,
+  ValidationResult,
+  AssignmentContextItem,
+  CandidateAssignment,
+  EmployeeConstraints,
+  OrganizationDefaults,
+  LeaveWindow,
+  ValidationContext,
+  ScheduleDto,
+  ShiftAssignmentDto,
+  ShiftRequirementDto,
+  ShiftCoverageDto,
+} from "./scheduling";
+export {
   DEFAULT_ROLE_COLOR,
   isHexColor,
   isTimeString,

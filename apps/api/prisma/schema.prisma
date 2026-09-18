@@ -29,6 +29,8 @@ model User {
   auditLogs        AuditLog[]     @relation("AuditUser")
   employeeProfiles Employee[]
   reviewedLeaves   LeaveRequest[] @relation("LeaveReviewer")
+  publishedSchedules Schedule[] @relation("SchedulePublisher")
+  scheduleVersions  ScheduleVersion[] @relation("ScheduleVersionPublisher")
 
   @@map("users")
 }
@@ -62,6 +64,9 @@ model Organization {
   auditLogs      AuditLog[]
   notifications  Notification[]
   leaveRequests  LeaveRequest[]
+  shiftAssignments ShiftAssignment[]
+  shiftRequirements ShiftRequirement[]
+  scheduleVersions ScheduleVersion[]
 
   @@map("organizations")
 }
@@ -139,6 +144,8 @@ model Role {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   employees      Employee[]
   shiftTemplates ShiftTemplate[]
+  shiftAssignments ShiftAssignment[]
+  shiftRequirements ShiftRequirement[]
 
   @@unique([name, organizationId])
   @@map("roles")
@@ -263,6 +270,8 @@ model ShiftTemplate {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role           Role?        @relation(fields: [roleId], references: [id])
   requiredSkills Skill[]      @relation("ShiftTemplateSkills")
+  assignments    ShiftAssignment[]
+  requirements   ShiftRequirement[]
 
   @@unique([name, organizationId])
   @@map("shift_templates")
@@ -279,17 +288,21 @@ enum ScheduleStatus {
 model Schedule {
   id             String         @id @default(uuid())
   organizationId String
-  name           String
-  startDate      DateTime
-  endDate        DateTime
+  weekStartDate  DateTime       @db.Date
   status         ScheduleStatus @default(DRAFT)
+  version        Int            @default(0)
   publishedAt    DateTime?
+  publishedById  String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignments  ShiftAssignment[]
+  requirements ShiftRequirement[]
+  versions     ScheduleVersion[]
+  publishedBy  User?            @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
+  @@unique([organizationId, weekStartDate])
   @@map("schedules")
 }
 
@@ -305,22 +318,68 @@ enum ShiftAssignmentStatus {
 }
 
 model ShiftAssignment {
-  id           String                @id @default(uuid())
-  scheduleId   String
-  employeeId   String
-  date         DateTime
-  startTime    String
-  endTime      String
-  breakMinutes Int                   @default(0)
-  status       ShiftAssignmentStatus @default(ASSIGNED)
-  notes        String?
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
+  id              String                @id @default(uuid())
+  scheduleId      String
+  organizationId  String
+  employeeId      String
+  shiftTemplateId String
+  roleId          String?
+  date            DateTime
+  startTime       String?
+  endTime         String?
+  breakMinutes    Int                   @default(0)
+  status          ShiftAssignmentStatus @default(ASSIGNED)
+  notes           String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
-  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
+  role          Role?         @relation(fields: [roleId], references: [id])
 
+  @@index([scheduleId])
+  @@index([employeeId, date])
+  @@index([organizationId])
   @@map("shift_assignments")
+}
+
+model ShiftRequirement {
+  id              String   @id @default(uuid())
+  organizationId  String
+  scheduleId      String
+  date            DateTime @db.Date
+  shiftTemplateId String
+  roleId          String
+  requiredCount   Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
+  role          Role           @relation(fields: [roleId], references: [id])
+
+  @@unique([scheduleId, date, shiftTemplateId, roleId])
+  @@map("shift_requirements")
+}
+
+model ScheduleVersion {
+  id             String   @id @default(uuid())
+  organizationId String
+  scheduleId     String
+  version        Int
+  publishedAt    DateTime @default(now())
+  publishedById  String?
+  snapshot       Json
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule     Schedule     @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  publishedBy  User?        @relation("ScheduleVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([scheduleId, version])
+  @@map("schedule_versions")
 }
 
 // ─── Leave Requests ──────────────────────────────────────────

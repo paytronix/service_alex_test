@@ -156,6 +156,33 @@ Every operation takes `organizationId`; the caller must be a member of that orga
 
 `employees` supports `search`, `departmentId`, `roleId`, `status` filters and `limit`/`offset` pagination.
 
+## Features (Epic 6 — Shift scheduler)
+
+- [x] Weekly draft schedules with publish/version history and assignment snapshots
+- [x] Template-backed shift assignments with optional time overrides and computed effective times
+- [x] Shift requirements and schedule coverage queries
+- [x] Pure shared conflict validation for overlap, rest, overtime, leave, availability, role, skill and consecutive-day rules
+- [x] Owner/Manager scheduling access with department-scoped Supervisor scheduling
+- [x] Schedule and shift audit events plus `SCHEDULE_UPDATED` publication hooks
+- [x] Reopen published schedules for revision and republish with incremented versions
+- [x] Scheduler frontend at `/schedule` with calendar, week grid, employee and role views
+- [x] dnd-kit assignment, move and Alt/Meta-copy interactions with conflict colours
+- [x] Coverage indicators plus publish/reopen controls
+
+### GraphQL operations
+
+| Entity | Queries | Mutations |
+|---|---|---|
+| Schedule | `schedule`, `scheduleById`, `schedules`, `scheduleCoverage`, `validateAssignment` | `createDraftSchedule`, `publishSchedule`, `reopenSchedule` |
+| ShiftAssignment | (via `Schedule.assignments`) | `assignShift`, `moveShift`, `copyShift`, `updateShift`, `removeShift` |
+| ShiftRequirement | `shiftRequirements` | `setShiftRequirement`, `deleteShiftRequirement` |
+
+Schedule reads and assignment writes are organization-scoped. Employees see only published
+schedules and their own assignments; Supervisors can read all schedules and write shifts only
+within their own department. Assignment warnings are returned to clients while validation errors
+block writes. `setShiftRequirement` with `requiredCount: 0` deletes the requirement and returns
+`null`.
+
 ### Seed data
 
 `pnpm --filter @shiftflow/api db:seed` creates a demo organization with Owner/Manager/Supervisor/Employee

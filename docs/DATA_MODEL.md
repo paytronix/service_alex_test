@@ -13,6 +13,9 @@ erDiagram
     Organization ||--o{ Employee : "employs"
     Organization ||--o{ ShiftTemplate : "uses"
     Organization ||--o{ Schedule : "plans"
+    Organization ||--o{ ShiftAssignment : "contains"
+    Organization ||--o{ ShiftRequirement : "defines"
+    Organization ||--o{ ScheduleVersion : "versions"
     Organization ||--o{ Invitation : "sends"
     Organization ||--o{ AuditLog : "tracks"
     Organization ||--o{ Notification : "emits"
@@ -26,6 +29,12 @@ erDiagram
     Employee ||--o{ ShiftAssignment : "works"
     Employee ||--o{ LeaveRequest : "requests"
     Schedule ||--o{ ShiftAssignment : "includes"
+    Schedule ||--o{ ShiftRequirement : "requires"
+    Schedule ||--o{ ScheduleVersion : "history"
+    ShiftTemplate ||--o{ ShiftAssignment : "uses"
+    ShiftTemplate ||--o{ ShiftRequirement : "covers"
+    Role ||--o{ ShiftAssignment : "fills"
+    Role ||--o{ ShiftRequirement : "needs"
 
     User {
         uuid id PK
@@ -153,8 +162,8 @@ erDiagram
         string name
         uuid organizationId FK
         uuid roleId FK
-        string startTime
-        string endTime
+        string startTime "optional override"
+        string endTime "optional override"
         boolean crossesMidnight
         int breakMinutes
         int minEmployees
@@ -167,11 +176,11 @@ erDiagram
     Schedule {
         uuid id PK
         uuid organizationId FK
-        string name
-        datetime startDate
-        datetime endDate
+        date weekStartDate UK
         enum status
+        int version
         datetime publishedAt
+        uuid publishedById FK
         datetime createdAt
         datetime updatedAt
     }
@@ -179,7 +188,10 @@ erDiagram
     ShiftAssignment {
         uuid id PK
         uuid scheduleId FK
+        uuid organizationId FK
         uuid employeeId FK
+        uuid shiftTemplateId FK
+        uuid roleId FK
         datetime date
         string startTime
         string endTime
@@ -188,6 +200,28 @@ erDiagram
         string notes
         datetime createdAt
         datetime updatedAt
+    }
+
+    ShiftRequirement {
+        uuid id PK
+        uuid organizationId FK
+        uuid scheduleId FK
+        date date
+        uuid shiftTemplateId FK
+        uuid roleId FK
+        int requiredCount
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ScheduleVersion {
+        uuid id PK
+        uuid organizationId FK
+        uuid scheduleId FK
+        int version UK
+        datetime publishedAt
+        uuid publishedById FK
+        json snapshot
     }
 
     LeaveRequest {
@@ -230,23 +264,27 @@ erDiagram
 
 ## Business Rules
 
-1. **No overlapping shifts**: An employee cannot be assigned to two shifts that overlap in time on the same day.
-2. **Weekly hour limit**: Total assigned hours per employee per week must not exceed `Organization.maxWeeklyHours` (default 40).
-3. **Minimum rest between shifts**: There must be at least `Organization.minRestHours` (default 8) hours between the end of one shift and the start of the next.
-4. **Respect availability**: Shifts can only be assigned during an employee's declared availability windows.
-5. **Respect leave requests**: Employees with approved leave requests cannot be assigned shifts during their leave period.
-6. **Role matching**: If a `ShiftTemplate` specifies a required `Role`, only employees with that role can be assigned.
-7. **Skill matching**: If a `ShiftTemplate` lists required `Skills`, assigned employees must possess those skills.
-8. **Catalog name uniqueness**: `Department`, `Role`, `Skill`, and `ShiftTemplate` names are unique within an organization (`@@unique([name, organizationId])`) and stored trimmed.
-9. **Night shifts**: `ShiftTemplate.crossesMidnight` is derived from the times — it is `true` when `endTime <= startTime` (e.g. 23:00–08:00), which also covers 24-hour templates.
-10. **Catalog scoping and permissions**: catalog reads are scoped to the organization from the auth context and available to any member; create/update/delete are restricted to `OWNER`/`MANAGER` and recorded in `AuditLog`.
-11. **Employee email uniqueness**: `Employee.email` is unique within an organization (`@@unique([email, organizationId])`) and stored normalized (trimmed, lower-cased).
-12. **One availability row per day**: `Availability` has at most one record per employee per weekday (`@@unique([employeeId, dayOfWeek])`); `availableFrom` (`HH:MM`) is required for `AVAILABLE_AFTER` and cleared for the other types.
-13. **Leave overlap**: A new `LeaveRequest` cannot overlap an existing `PENDING` or `APPROVED` request for the same employee, and `endDate >= startDate`.
-14. **Leave review**: Only `PENDING` requests can be approved or rejected, and only by `OWNER`/`MANAGER`; the reviewer and timestamp are stored and the action written to `AuditLog`. Approving an active `VACATION`/`SICK` request sets the employee status accordingly.
-15. **Employee self-service**: an `EMPLOYEE` may edit only the availability of, and create leave requests for, the employee profile linked to their own user; `OWNER`/`MANAGER` may act on any employee in the organization.
-16. **Dismissal vs deletion**: `dismissEmployee` is a soft delete that sets `status = DISMISSED`; `deleteEmployee` removes the record.
-17. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable (archive and create new).
+1. **No overlapping shifts (`OVERLAP`, ERROR)**: Absolute employee shift intervals cannot overlap; touching endpoints are allowed.
+2. **Minimum rest (`INSUFFICIENT_REST`, ERROR)**: Non-overlapping neighbouring shifts must be separated by the employee's minimum rest or the organization default.
+3. **Weekly hours (`OVERTIME`, WARNING)**: Paid hours (duration less break minutes) above the employee's limit or `Organization.maxWeeklyHours` are returned as a warning and still saved.
+4. **Inactive employee (`EMPLOYEE_INACTIVE`, ERROR)**: Dismissed employees cannot receive assignments.
+5. **Leave (`ON_LEAVE`, ERROR)**: Approved leave windows and `VACATION`/`SICK` employee status block assignments.
+6. **Role matching (`ROLE_MISMATCH`, ERROR)**: A supplied assignment role must match the employee role.
+7. **Skill matching (`SKILL_MISMATCH`, ERROR)**: Required template skills must be a subset of employee skills.
+8. **Availability (`UNAVAILABLE`, ERROR)**: Unavailable weekdays block assignments.
+9. **Availability-after (`AVAILABLE_AFTER_CONFLICT`, WARNING)**: Assignments beginning before an `AVAILABLE_AFTER` time are saved with a warning so the UI can explain the conflict.
+10. **Consecutive days (`MAX_CONSECUTIVE_SHIFTS`, WARNING)**: A run of calendar days worked above the employee limit is returned as a warning.
+11. **Night shifts**: Template and assignment intervals cross midnight when `endTime <= startTime` (for example 23:00–08:00).
+12. **Schedule history**: Publishing increments the schedule version and stores the serialized assignment snapshot in `ScheduleVersion`.
+13. **Catalog name uniqueness**: `Department`, `Role`, `Skill`, and `ShiftTemplate` names are unique within an organization (`@@unique([name, organizationId])`) and stored trimmed.
+14. **Catalog scoping and permissions**: catalog reads are scoped to the organization from the auth context and available to any member; create/update/delete are restricted to `OWNER`/`MANAGER` and recorded in `AuditLog`.
+15. **Employee email uniqueness**: `Employee.email` is unique within an organization (`@@unique([email, organizationId])`) and stored normalized (trimmed, lower-cased).
+16. **One availability row per day**: `Availability` has at most one record per employee per weekday (`@@unique([employeeId, dayOfWeek])`); `availableFrom` (`HH:MM`) is required for `AVAILABLE_AFTER` and cleared for the other types.
+17. **Leave overlap**: A new `LeaveRequest` cannot overlap an existing `PENDING` or `APPROVED` request for the same employee, and `endDate >= startDate`.
+18. **Leave review**: Only `PENDING` requests can be approved or rejected, and only by `OWNER`/`MANAGER`; the reviewer and timestamp are stored and the action written to `AuditLog`. Approving an active `VACATION`/`SICK` request sets the employee status accordingly.
+19. **Employee self-service**: an `EMPLOYEE` may edit only the availability of, and create leave requests for, the employee profile linked to their own user; `OWNER`/`MANAGER` may act on any employee in the organization.
+20. **Dismissal vs deletion**: `dismissEmployee` is a soft delete that sets `status = DISMISSED`; `deleteEmployee` removes the record.
+21. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable until reopened by an Owner or Manager; publishing increments `version` and stores a `ScheduleVersion` snapshot.
 
 ## Enums
 
