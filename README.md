@@ -113,6 +113,26 @@ See [docs/DATA_MODEL.md](docs/DATA_MODEL.md) for the ER diagram, all entities, a
 - [x] GitHub Actions CI (lint + typecheck + test + migrate)
 - [x] Unit tests for auth, RBAC, and components
 
+## Features (Epic 4 — Catalogs)
+
+- [x] CRUD for `Department`, `Role`, `Skill`, `ShiftTemplate`, scoped to the organization from the auth context
+- [x] Queries for all members; `create*`/`update*`/`delete*` mutations restricted to Owner/Manager and written to `AuditLog`
+- [x] Validation: non-empty and per-organization unique names, hex colors, `HH:MM` times, derived `crossesMidnight`
+- [x] Shared DTOs and time/color validation utilities in `packages/shared`
+- [x] Catalogs UI at `/settings/catalogs` (tabs for Departments, Roles, Skills, Shift Templates) with role-gated actions
+- [x] Tests: GraphQL CRUD/scoping/RBAC integration tests and component tests for the catalog sections
+
+### GraphQL operations
+
+| Entity | Queries | Mutations |
+|---|---|---|
+| Department | `departments`, `department` | `createDepartment`, `updateDepartment`, `deleteDepartment` |
+| Role | `roles`, `role` | `createRole`, `updateRole`, `deleteRole` |
+| Skill | `skills`, `skill` | `createSkill`, `updateSkill`, `deleteSkill` |
+| ShiftTemplate | `shiftTemplates`, `shiftTemplate` | `createShiftTemplate`, `updateShiftTemplate`, `deleteShiftTemplate` |
+
+Every operation takes `organizationId`; the caller must be a member of that organization.
+
 ## License
 
 Proprietary
