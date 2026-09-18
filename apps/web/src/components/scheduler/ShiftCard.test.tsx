@@ -2,7 +2,7 @@ import { DndContext } from "@dnd-kit/core";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ShiftCard } from "./ShiftCard";
-import type { SchedulerAssignment } from "./types";
+import type { SchedulerAssignment, SchedulerViolation } from "./types";
 
 const base: SchedulerAssignment = {
   id: "assignment-1",
@@ -21,10 +21,10 @@ const base: SchedulerAssignment = {
   role: { id: "role-1", name: "Barista", color: null },
 };
 
-function renderCard(violations: SchedulerAssignment["violations"]) {
+function renderCard(violations: SchedulerViolation[]) {
   return render(
     <DndContext>
-      <ShiftCard assignment={{ ...base, violations }} canEdit onRemove={vi.fn()} />
+      <ShiftCard assignment={base} violations={violations} canEdit onRemove={vi.fn()} />
     </DndContext>,
   );
 }

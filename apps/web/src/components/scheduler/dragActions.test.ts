@@ -58,4 +58,32 @@ describe("resolveDragAction", () => {
       }),
     ).toEqual({ kind: "noop" });
   });
+
+  it("keeps a card's template when dropped on an employee row", () => {
+    const active: ActiveDrag = { type: "assignment", assignment };
+    expect(
+      resolveDragAction({
+        active,
+        over: { type: "cell", date: "2026-09-22", shiftTemplateId: null, employeeId: "employee-2" },
+        copy: false,
+      }),
+    ).toEqual({
+      kind: "move",
+      assignmentId: assignment.id,
+      date: "2026-09-22",
+      shiftTemplateId: assignment.shiftTemplateId,
+      employeeId: "employee-2",
+    });
+  });
+
+  it("requires a shift when a palette employee is dropped on a template-less cell", () => {
+    const active: ActiveDrag = { type: "employee", employee };
+    expect(
+      resolveDragAction({
+        active,
+        over: { type: "cell", date: "2026-09-22", shiftTemplateId: null },
+        copy: false,
+      }),
+    ).toEqual({ kind: "needs-shift" });
+  });
 });

@@ -33,6 +33,7 @@ describe("WeekGridView", () => {
           roles={[{ id: "role-1", name: "Barista", color: null }]}
           weekDates={["2026-09-21"]}
           coverage={[{ date: "2026-09-21", shiftTemplateId: template.id, roleId: "role-1", assignedCount: 1, requiredCount: 2 }]}
+          violationsByAssignment={{}}
           canEdit
           onRemove={vi.fn()}
         />

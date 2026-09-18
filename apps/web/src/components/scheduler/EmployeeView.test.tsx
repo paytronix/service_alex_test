@@ -14,6 +14,7 @@ describe("EmployeeView", () => {
           roles={[]}
           weekDates={["2026-09-21"]}
           coverage={[]}
+          violationsByAssignment={{}}
           canEdit
           onRemove={vi.fn()}
         />

@@ -41,7 +41,6 @@ export interface SchedulerAssignment {
   employee: SchedulerEmployee;
   shiftTemplate: SchedulerTemplate;
   role: SchedulerRole | null;
-  violations?: SchedulerViolation[];
 }
 
 export interface SchedulerRequirement {
@@ -67,6 +66,7 @@ export interface SchedulerViewProps {
   roles: SchedulerRole[];
   weekDates: string[];
   coverage: SchedulerCoverage[];
+  violationsByAssignment: Record<string, SchedulerViolation[]>;
   canEdit: boolean;
   onRemove: (assignment: SchedulerAssignment) => void;
 }
@@ -78,6 +78,6 @@ export type ActiveDrag =
 export interface DropTarget {
   type: "cell";
   date: string;
-  shiftTemplateId: string;
+  shiftTemplateId: string | null;
   employeeId?: string;
 }

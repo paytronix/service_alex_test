@@ -102,9 +102,14 @@ interface ValidationData {
 }
 
 interface ShiftMutationData {
-  assignShift?: { violations: SchedulerViolation[] };
-  moveShift?: { violations: SchedulerViolation[] };
-  copyShift?: { violations: SchedulerViolation[] };
+  assignShift?: ShiftMutationPayload;
+  moveShift?: ShiftMutationPayload;
+  copyShift?: ShiftMutationPayload;
+}
+
+interface ShiftMutationPayload {
+  assignment: { id: string };
+  violations: SchedulerViolation[];
 }
 
 const initialWeek = toDateOnly(startOfWeek(new Date()));
@@ -136,6 +141,9 @@ export function SchedulerPage() {
   const [view, setView] = useState<"calendar" | "grid" | "employees" | "roles">("calendar");
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<SchedulerViolation[]>([]);
+  const [assignmentViolations, setAssignmentViolations] = useState<
+    Record<string, SchedulerViolation[]>
+  >({});
   const [copyMode, setCopyMode] = useState(false);
   const [dropValidation, setDropValidation] = useState<ValidationData["validateAssignment"] | null>(null);
   const lastValidation = useRef("");
@@ -203,12 +211,27 @@ export function SchedulerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    setAssignmentViolations({});
+  }, [weekStart]);
+
   const execute = async (action: () => Promise<{ data?: ShiftMutationData | null }>): Promise<void> => {
     setError(null);
     try {
       const result = await action();
       const payload = result.data?.assignShift ?? result.data?.moveShift ?? result.data?.copyShift;
-      if (payload?.violations) setWarnings(warningMessages(payload.violations));
+      if (payload) {
+        setWarnings(warningMessages(payload.violations));
+        setAssignmentViolations((current) => {
+          const next = { ...current };
+          if (payload.violations.length === 0) {
+            delete next[payload.assignment.id];
+          } else {
+            next[payload.assignment.id] = payload.violations;
+          }
+          return next;
+        });
+      }
     } catch (mutationError) {
       setError(mutationError instanceof Error ? mutationError.message : "The schedule update failed");
     }
@@ -253,6 +276,10 @@ export function SchedulerPage() {
     if (!activeValue || !target) return;
     const action = resolveDragAction({ active: activeValue, over: target, copy: copyMode });
     if (action.kind === "noop") return;
+    if (action.kind === "needs-shift") {
+      setError("Choose a shift by dropping the employee in the Calendar or Week grid view.");
+      return;
+    }
     if (dropValidation?.hasErrors) {
       setError(dropValidation.violations.filter((item) => item.level === "ERROR").map((item) => item.message).join(" "));
       return;
@@ -299,8 +326,7 @@ export function SchedulerPage() {
     }
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    activeDrag(event.active);
+  const handleDragStart = (_event: DragStartEvent) => {
     setDropValidation(null);
     lastValidation.current = "";
   };
@@ -434,10 +460,10 @@ export function SchedulerPage() {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            {view === "calendar" && <CalendarView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} canEdit={canEdit} onRemove={removeAssignment} />}
-            {view === "grid" && <WeekGridView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} canEdit={canEdit} onRemove={removeAssignment} />}
-            {view === "employees" && <EmployeeView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} canEdit={canEdit} onRemove={removeAssignment} />}
-            {view === "roles" && <RoleView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} canEdit={canEdit} onRemove={removeAssignment} />}
+            {view === "calendar" && <CalendarView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
+            {view === "grid" && <WeekGridView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
+            {view === "employees" && <EmployeeView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
+            {view === "roles" && <RoleView assignments={assignments} employees={employees} shiftTemplates={shiftTemplates} roles={roles} weekDates={week} coverage={coverage} violationsByAssignment={assignmentViolations} canEdit={canEdit} onRemove={removeAssignment} />}
             {canEdit && <EmployeePalette employees={employees} canEdit={canEdit} />}
           </DndContext>
         </>

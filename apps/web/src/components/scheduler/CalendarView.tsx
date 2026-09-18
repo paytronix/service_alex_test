@@ -4,14 +4,22 @@ import type { SchedulerViewProps } from "./types";
 
 function CalendarCell({
   date,
+  templateName,
+  startTime,
+  endTime,
   shiftTemplateId,
   assignments,
+  violationsByAssignment,
   canEdit,
   onRemove,
 }: {
   date: string;
+  templateName: string;
+  startTime: string;
+  endTime: string;
   shiftTemplateId: string;
   assignments: SchedulerViewProps["assignments"];
+  violationsByAssignment: SchedulerViewProps["violationsByAssignment"];
   canEdit: boolean;
   onRemove: SchedulerViewProps["onRemove"];
 }) {
@@ -27,8 +35,17 @@ function CalendarCell({
         droppable.isOver ? "border-primary-500 bg-primary-50" : "border-gray-200"
       }`}
     >
+      <p className="text-xs font-semibold text-gray-700">
+        {templateName} <span className="font-normal text-gray-500">{startTime}–{endTime}</span>
+      </p>
       {assignments.map((assignment) => (
-        <ShiftCard key={assignment.id} assignment={assignment} canEdit={canEdit} onRemove={onRemove} />
+        <ShiftCard
+          key={assignment.id}
+          assignment={assignment}
+          violations={violationsByAssignment[assignment.id] ?? []}
+          canEdit={canEdit}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
@@ -37,6 +54,7 @@ function CalendarCell({
 export function CalendarView({
   assignments,
   shiftTemplates,
+  violationsByAssignment,
   weekDates,
   canEdit,
   onRemove,
@@ -45,18 +63,20 @@ export function CalendarView({
     <div className="grid gap-3 md:grid-cols-7">
       {weekDates.map((date) => {
         const dayAssignments = assignments.filter((assignment) => assignment.date.slice(0, 10) === date);
-        const templateIds = [...new Set(dayAssignments.map((assignment) => assignment.shiftTemplateId))];
-        const ids = templateIds.length > 0 ? templateIds : shiftTemplates.slice(0, 1).map((template) => template.id);
         return (
           <section key={date}>
             <h3 className="mb-2 text-sm font-semibold text-gray-700">{date}</h3>
             <div className="space-y-2">
-              {ids.map((templateId) => (
+              {shiftTemplates.map((template) => (
                 <CalendarCell
-                  key={templateId}
+                  key={template.id}
                   date={date}
-                  shiftTemplateId={templateId}
-                  assignments={dayAssignments.filter((assignment) => assignment.shiftTemplateId === templateId)}
+                  templateName={template.name}
+                  startTime={template.startTime}
+                  endTime={template.endTime}
+                  shiftTemplateId={template.id}
+                  assignments={dayAssignments.filter((assignment) => assignment.shiftTemplateId === template.id)}
+                  violationsByAssignment={violationsByAssignment}
                   canEdit={canEdit}
                   onRemove={onRemove}
                 />

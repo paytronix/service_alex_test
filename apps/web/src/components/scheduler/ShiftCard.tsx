@@ -1,17 +1,18 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { SchedulerAssignment } from "./types";
+import type { SchedulerAssignment, SchedulerViolation } from "./types";
 
 interface ShiftCardProps {
   assignment: SchedulerAssignment;
+  violations: SchedulerViolation[];
   canEdit: boolean;
   onRemove: (assignment: SchedulerAssignment) => void;
 }
 
-function violationClass(assignment: SchedulerAssignment): string {
-  if (assignment.violations?.some((violation) => violation.level === "ERROR")) {
+function violationClass(violations: SchedulerViolation[]): string {
+  if (violations.some((violation) => violation.level === "ERROR")) {
     return "ring-2 ring-red-500";
   }
-  if (assignment.violations?.some((violation) => violation.level === "WARNING")) {
+  if (violations.some((violation) => violation.level === "WARNING")) {
     return "ring-2 ring-amber-400";
   }
   return "";
@@ -28,20 +29,20 @@ function roleAccentClass(color: string | null): string {
   return accents[color ?? ""] ?? "border-l-slate-500";
 }
 
-export function ShiftCard({ assignment, canEdit, onRemove }: ShiftCardProps) {
+export function ShiftCard({ assignment, violations, canEdit, onRemove }: ShiftCardProps) {
   const draggable = useDraggable({
     id: `assignment-${assignment.id}`,
     disabled: !canEdit,
     data: { type: "assignment", assignment },
   });
-  const messages = assignment.violations?.map((violation) => violation.message).join(" | ");
+  const messages = violations.map((violation) => violation.message).join(" | ");
   return (
     <article
       ref={draggable.setNodeRef}
-      title={messages ?? `${assignment.effectiveStartTime}–${assignment.effectiveEndTime}`}
+      title={messages || `${assignment.effectiveStartTime}–${assignment.effectiveEndTime}`}
       className={`relative rounded border border-l-4 bg-white p-2 text-left shadow-sm ${
         draggable.isDragging ? "opacity-50" : ""
-      } ${roleAccentClass(assignment.role?.color ?? null)} ${violationClass(assignment)}`}
+      } ${roleAccentClass(assignment.role?.color ?? null)} ${violationClass(violations)}`}
       {...draggable.attributes}
       {...draggable.listeners}
     >

@@ -7,6 +7,7 @@ function GridCell({
   templateId,
   assignments,
   coverage,
+  violationsByAssignment,
   canEdit,
   onRemove,
 }: {
@@ -14,6 +15,7 @@ function GridCell({
   templateId: string;
   assignments: SchedulerViewProps["assignments"];
   coverage: SchedulerViewProps["coverage"];
+  violationsByAssignment: SchedulerViewProps["violationsByAssignment"];
   canEdit: boolean;
   onRemove: SchedulerViewProps["onRemove"];
 }) {
@@ -41,7 +43,13 @@ function GridCell({
         </p>
       ))}
       {assignments.map((assignment) => (
-        <ShiftCard key={assignment.id} assignment={assignment} canEdit={canEdit} onRemove={onRemove} />
+        <ShiftCard
+          key={assignment.id}
+          assignment={assignment}
+          violations={violationsByAssignment[assignment.id] ?? []}
+          canEdit={canEdit}
+          onRemove={onRemove}
+        />
       ))}
     </div>
   );
@@ -52,6 +60,7 @@ export function WeekGridView({
   shiftTemplates,
   weekDates,
   coverage,
+  violationsByAssignment,
   canEdit,
   onRemove,
 }: SchedulerViewProps) {
@@ -79,6 +88,7 @@ export function WeekGridView({
                       assignment.shiftTemplateId === template.id,
                   )}
                   coverage={coverage}
+                  violationsByAssignment={violationsByAssignment}
                   canEdit={canEdit}
                   onRemove={onRemove}
                 />

@@ -7,13 +7,15 @@ function EmployeeCell({
   date,
   templateId,
   assignments,
+  violationsByAssignment,
   canEdit,
   onRemove,
 }: {
   employeeId: string;
   date: string;
-  templateId: string;
+  templateId: string | null;
   assignments: SchedulerViewProps["assignments"];
+  violationsByAssignment: SchedulerViewProps["violationsByAssignment"];
   canEdit: boolean;
   onRemove: SchedulerViewProps["onRemove"];
 }) {
@@ -33,7 +35,13 @@ function EmployeeCell({
         <span className="text-xs text-gray-400">Off</span>
       ) : (
         assignments.map((assignment) => (
-          <ShiftCard key={assignment.id} assignment={assignment} canEdit={canEdit} onRemove={onRemove} />
+          <ShiftCard
+            key={assignment.id}
+            assignment={assignment}
+            violations={violationsByAssignment[assignment.id] ?? []}
+            canEdit={canEdit}
+            onRemove={onRemove}
+          />
         ))
       )}
     </div>
@@ -43,12 +51,11 @@ function EmployeeCell({
 export function EmployeeView({
   assignments,
   employees,
-  shiftTemplates,
+  violationsByAssignment,
   weekDates,
   canEdit,
   onRemove,
 }: SchedulerViewProps) {
-  const fallbackTemplate = shiftTemplates[0]?.id ?? "";
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[900px]">
@@ -69,18 +76,13 @@ export function EmployeeView({
                   key={`${employee.id}-${date}`}
                   employeeId={employee.id}
                   date={date}
-                  templateId={
-                    assignments.find(
-                      (assignment) =>
-                        assignment.employeeId === employee.id &&
-                        assignment.date.slice(0, 10) === date,
-                    )?.shiftTemplateId ?? fallbackTemplate
-                  }
+                  templateId={null}
                   assignments={assignments.filter(
                     (assignment) =>
                       assignment.employeeId === employee.id &&
                       assignment.date.slice(0, 10) === date,
                   )}
+                  violationsByAssignment={violationsByAssignment}
                   canEdit={canEdit}
                   onRemove={onRemove}
                 />
