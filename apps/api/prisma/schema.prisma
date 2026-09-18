@@ -211,6 +211,8 @@ model Employee {
 
   @@unique([email, organizationId])
   @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, departmentId])
   @@map("employees")
 }
 
@@ -307,6 +309,7 @@ model Schedule {
   publishedBy  User?            @relation("SchedulePublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, weekStartDate])
+  @@index([organizationId, status])
   @@map("schedules")
 }
 
@@ -346,6 +349,7 @@ model ShiftAssignment {
   @@index([scheduleId])
   @@index([employeeId, date])
   @@index([organizationId])
+  @@index([organizationId, date])
   @@map("shift_assignments")
 }
 
@@ -366,6 +370,8 @@ model ShiftRequirement {
   role          Role           @relation(fields: [roleId], references: [id])
 
   @@unique([scheduleId, date, shiftTemplateId, roleId])
+  @@index([organizationId, date])
+  @@index([scheduleId])
   @@map("shift_requirements")
 }
 
@@ -421,6 +427,8 @@ model LeaveRequest {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   reviewedBy   User?        @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
+  @@index([organizationId, status])
+  @@index([employeeId, startDate])
   @@map("leave_requests")
 }
 

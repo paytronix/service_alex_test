@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { beforeAll, afterAll } from "vitest";
 
 beforeAll(async () => {

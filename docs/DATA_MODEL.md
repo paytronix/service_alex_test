@@ -292,6 +292,25 @@ erDiagram
 26. **History access**: `auditLogs` is restricted to `OWNER`/`MANAGER`; `scheduleVersions`, `scheduleChangeHistory` and `scheduleVersionDiff` also allow `SUPERVISOR`. `scheduleVersionDiff` compares two `ScheduleVersion` snapshots and derives `CREATED`/`MOVED`/`REPLACED`/`REMOVED` entries.
 27. **Audit writes are system-only**: `AuditLog` rows are written by services (`AuditService.record`), never by client mutations.
 
+## Epic 8 Reports and analytics
+
+Epic 8 adds no new database tables. Report queries use the existing schedules, assignments,
+requirements, employees, leave requests, and assignment-history tables. Migration
+`20260101000500_report_indexes` adds these organization- and date-oriented indexes:
+
+- `ShiftAssignment(organizationId, date)`
+- `ShiftRequirement(organizationId, date)`
+- `ShiftRequirement(scheduleId)`
+- `Schedule(organizationId, status)`
+- `LeaveRequest(organizationId, status)`
+- `LeaveRequest(employeeId, startDate)`
+- `Employee(organizationId, status)`
+- `Employee(organizationId, departmentId)`
+
+Reports can be exported through `GET /api/reports/export` with a JWT. The endpoint returns CSV,
+Excel, or PDF attachments and requires Owner or Manager permissions; the GraphQL `exportReport`
+operation is available for API clients that need base64 file contents.
+
 ## Enums
 
 ### MembershipRole
