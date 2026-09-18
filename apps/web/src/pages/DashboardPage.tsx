@@ -90,6 +90,9 @@ export function DashboardPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <h1 className="text-xl font-bold text-primary-700">ShiftFlow</h1>
           <div className="flex items-center gap-4">
+            <Link to="/employees" className="text-sm text-primary-600 hover:underline">
+              Employees
+            </Link>
             <Link to="/settings/catalogs" className="text-sm text-primary-600 hover:underline">
               Catalogs
             </Link>

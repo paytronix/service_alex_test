@@ -361,3 +361,277 @@ export const DELETE_SHIFT_TEMPLATE_MUTATION = gql`
     deleteShiftTemplate(organizationId: $organizationId, id: $id)
   }
 `;
+
+export const EMPLOYEES_QUERY = gql`
+  query Employees(
+    $organizationId: String!
+    $departmentId: String
+    $roleId: String
+    $status: EmployeeStatus
+    $search: String
+  ) {
+    employees(
+      organizationId: $organizationId
+      departmentId: $departmentId
+      roleId: $roleId
+      status: $status
+      search: $search
+    ) {
+      id
+      firstName
+      lastName
+      fullName
+      email
+      phone
+      photoUrl
+      status
+      hireDate
+      roleId
+      departmentId
+      role {
+        id
+        name
+        color
+      }
+      department {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const EMPLOYEE_QUERY = gql`
+  query Employee($organizationId: String!, $id: String!) {
+    employee(organizationId: $organizationId, id: $id) {
+      id
+      firstName
+      lastName
+      fullName
+      email
+      phone
+      photoUrl
+      status
+      hireDate
+      maxHoursPerWeek
+      maxConsecutiveShifts
+      minRestHours
+      roleId
+      departmentId
+      role {
+        id
+        name
+        color
+      }
+      department {
+        id
+        name
+      }
+      skills {
+        id
+        skillId
+        level
+        skill {
+          id
+          name
+        }
+      }
+      availability {
+        id
+        dayOfWeek
+        type
+        availableFrom
+      }
+    }
+  }
+`;
+
+export const MY_EMPLOYEE_PROFILE_QUERY = gql`
+  query MyEmployeeProfile($organizationId: String!) {
+    myEmployeeProfile(organizationId: $organizationId) {
+      id
+      fullName
+    }
+  }
+`;
+
+export const CREATE_EMPLOYEE_MUTATION = gql`
+  mutation CreateEmployee(
+    $organizationId: String!
+    $firstName: String!
+    $lastName: String!
+    $email: String!
+    $phone: String
+    $photoUrl: String
+    $roleId: String
+    $departmentId: String
+    $hireDate: DateTime
+    $status: EmployeeStatus
+    $maxHoursPerWeek: Int
+    $maxConsecutiveShifts: Int
+    $minRestHours: Int
+  ) {
+    createEmployee(
+      organizationId: $organizationId
+      firstName: $firstName
+      lastName: $lastName
+      email: $email
+      phone: $phone
+      photoUrl: $photoUrl
+      roleId: $roleId
+      departmentId: $departmentId
+      hireDate: $hireDate
+      status: $status
+      maxHoursPerWeek: $maxHoursPerWeek
+      maxConsecutiveShifts: $maxConsecutiveShifts
+      minRestHours: $minRestHours
+    ) {
+      id
+    }
+  }
+`;
+
+export const UPDATE_EMPLOYEE_MUTATION = gql`
+  mutation UpdateEmployee(
+    $organizationId: String!
+    $id: String!
+    $firstName: String
+    $lastName: String
+    $email: String
+    $phone: String
+    $photoUrl: String
+    $roleId: String
+    $departmentId: String
+    $hireDate: DateTime
+    $status: EmployeeStatus
+    $maxHoursPerWeek: Int
+    $maxConsecutiveShifts: Int
+    $minRestHours: Int
+  ) {
+    updateEmployee(
+      organizationId: $organizationId
+      id: $id
+      firstName: $firstName
+      lastName: $lastName
+      email: $email
+      phone: $phone
+      photoUrl: $photoUrl
+      roleId: $roleId
+      departmentId: $departmentId
+      hireDate: $hireDate
+      status: $status
+      maxHoursPerWeek: $maxHoursPerWeek
+      maxConsecutiveShifts: $maxConsecutiveShifts
+      minRestHours: $minRestHours
+    ) {
+      id
+    }
+  }
+`;
+
+export const DISMISS_EMPLOYEE_MUTATION = gql`
+  mutation DismissEmployee($organizationId: String!, $id: String!) {
+    dismissEmployee(organizationId: $organizationId, id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const DELETE_EMPLOYEE_MUTATION = gql`
+  mutation DeleteEmployee($organizationId: String!, $id: String!) {
+    deleteEmployee(organizationId: $organizationId, id: $id)
+  }
+`;
+
+export const SET_EMPLOYEE_SKILLS_MUTATION = gql`
+  mutation SetEmployeeSkills(
+    $organizationId: String!
+    $employeeId: String!
+    $skillIds: [String!]!
+  ) {
+    setEmployeeSkills(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      skillIds: $skillIds
+    ) {
+      id
+      skillId
+    }
+  }
+`;
+
+export const SET_AVAILABILITY_MUTATION = gql`
+  mutation SetAvailability(
+    $organizationId: String!
+    $employeeId: String!
+    $entries: [AvailabilityEntryInput!]!
+  ) {
+    setAvailability(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      entries: $entries
+    ) {
+      id
+      dayOfWeek
+      type
+      availableFrom
+    }
+  }
+`;
+
+export const LEAVE_REQUESTS_QUERY = gql`
+  query LeaveRequests($organizationId: String!, $employeeId: String, $status: LeaveStatus) {
+    leaveRequests(organizationId: $organizationId, employeeId: $employeeId, status: $status) {
+      id
+      employeeId
+      type
+      status
+      startDate
+      endDate
+      reason
+      reviewedAt
+    }
+  }
+`;
+
+export const CREATE_LEAVE_REQUEST_MUTATION = gql`
+  mutation CreateLeaveRequest(
+    $organizationId: String!
+    $employeeId: String!
+    $type: LeaveType!
+    $startDate: DateTime!
+    $endDate: DateTime!
+    $reason: String
+  ) {
+    createLeaveRequest(
+      organizationId: $organizationId
+      employeeId: $employeeId
+      type: $type
+      startDate: $startDate
+      endDate: $endDate
+      reason: $reason
+    ) {
+      id
+      status
+    }
+  }
+`;
+
+export const APPROVE_LEAVE_REQUEST_MUTATION = gql`
+  mutation ApproveLeaveRequest($organizationId: String!, $id: String!) {
+    approveLeaveRequest(organizationId: $organizationId, id: $id) {
+      id
+      status
+    }
+  }
+`;
+
+export const REJECT_LEAVE_REQUEST_MUTATION = gql`
+  mutation RejectLeaveRequest($organizationId: String!, $id: String!) {
+    rejectLeaveRequest(organizationId: $organizationId, id: $id) {
+      id
+      status
+    }
+  }
+`;

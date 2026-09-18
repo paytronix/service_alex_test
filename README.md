@@ -133,6 +133,35 @@ See [docs/DATA_MODEL.md](docs/DATA_MODEL.md) for the ER diagram, all entities, a
 
 Every operation takes `organizationId`; the caller must be a member of that organization.
 
+## Features (Epic 5 — Employee management)
+
+- [x] `Employee` CRUD with `Role`/`Department` links, work limits, photo URL and `EmployeeStatus` (soft dismissal via `dismissEmployee`)
+- [x] `EmployeeSkill` management (assign, remove, or replace the whole set) against the Epic 4 skill catalog
+- [x] Weekly `Availability` editor (`UNAVAILABLE` / `AVAILABLE` / `AVAILABLE_AFTER HH:MM`), one record per employee per weekday
+- [x] Full `LeaveRequest` lifecycle: create, approve, reject, cancel — with date-range and overlap validation, reviewer metadata and `AuditLog` entries
+- [x] RBAC: Owner/Manager manage employees and review leave; Supervisor reads; Employee edits only their own availability and leave
+- [x] Relations (`role`, `department`, `skills`, `availability`) resolved through DataLoader to avoid N+1 queries
+- [x] Employees UI at `/employees`: filterable list, employee card (Basics / Work / Limits / Skills / Availability / Requests) and a manager leave queue
+- [x] Shared enums (`EmployeeStatus`, `AvailabilityType`, `LeaveType`, `LeaveStatus`) and email/phone/date validators in `packages/shared`
+- [x] Tests: GraphQL integration tests for CRUD, skills, availability, leave lifecycle, scoping and RBAC; component tests for list, card, availability editor and leave panel
+
+### GraphQL operations
+
+| Entity | Queries | Mutations |
+|---|---|---|
+| Employee | `employees`, `employeeCount`, `employee`, `myEmployeeProfile` | `createEmployee`, `updateEmployee`, `dismissEmployee`, `deleteEmployee` |
+| EmployeeSkill | (via `employee.skills`) | `setEmployeeSkills`, `assignSkillToEmployee`, `removeSkillFromEmployee` |
+| Availability | `employeeAvailability` | `setAvailability` |
+| LeaveRequest | `leaveRequests`, `leaveRequest` | `createLeaveRequest`, `approveLeaveRequest`, `rejectLeaveRequest`, `cancelLeaveRequest` |
+
+`employees` supports `search`, `departmentId`, `roleId`, `status` filters and `limit`/`offset` pagination.
+
+### Seed data
+
+`pnpm --filter @shiftflow/api db:seed` creates a demo organization with Owner/Manager/Supervisor/Employee
+accounts, catalogs, employee profiles, availability and a pending leave request. The demo password is
+printed by the script — it is for local development only.
+
 ## License
 
 Proprietary

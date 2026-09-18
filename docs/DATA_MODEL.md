@@ -111,17 +111,21 @@ erDiagram
 
     Employee {
         uuid id PK
-        string externalUserId
+        uuid userId FK
         string firstName
         string lastName
         string email
         string phone
+        string photoUrl
         datetime hireDate
         decimal hourlyRate
+        enum status
+        int maxHoursPerWeek
+        int maxConsecutiveShifts
+        int minRestHours
         uuid organizationId FK
         uuid departmentId FK
         uuid roleId FK
-        boolean isActive
         datetime createdAt
         datetime updatedAt
     }
@@ -138,8 +142,8 @@ erDiagram
         uuid id PK
         uuid employeeId FK
         int dayOfWeek
-        string startTime
-        string endTime
+        enum type
+        string availableFrom
         datetime createdAt
         datetime updatedAt
     }
@@ -189,11 +193,14 @@ erDiagram
     LeaveRequest {
         uuid id PK
         uuid employeeId FK
+        uuid organizationId FK
+        enum type
         datetime startDate
         datetime endDate
         string reason
         enum status
-        string reviewedBy
+        uuid reviewedById FK
+        datetime reviewedAt
         datetime createdAt
         datetime updatedAt
     }
@@ -233,7 +240,13 @@ erDiagram
 8. **Catalog name uniqueness**: `Department`, `Role`, `Skill`, and `ShiftTemplate` names are unique within an organization (`@@unique([name, organizationId])`) and stored trimmed.
 9. **Night shifts**: `ShiftTemplate.crossesMidnight` is derived from the times — it is `true` when `endTime <= startTime` (e.g. 23:00–08:00), which also covers 24-hour templates.
 10. **Catalog scoping and permissions**: catalog reads are scoped to the organization from the auth context and available to any member; create/update/delete are restricted to `OWNER`/`MANAGER` and recorded in `AuditLog`.
-11. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable (archive and create new).
+11. **Employee email uniqueness**: `Employee.email` is unique within an organization (`@@unique([email, organizationId])`) and stored normalized (trimmed, lower-cased).
+12. **One availability row per day**: `Availability` has at most one record per employee per weekday (`@@unique([employeeId, dayOfWeek])`); `availableFrom` (`HH:MM`) is required for `AVAILABLE_AFTER` and cleared for the other types.
+13. **Leave overlap**: A new `LeaveRequest` cannot overlap an existing `PENDING` or `APPROVED` request for the same employee, and `endDate >= startDate`.
+14. **Leave review**: Only `PENDING` requests can be approved or rejected, and only by `OWNER`/`MANAGER`; the reviewer and timestamp are stored and the action written to `AuditLog`. Approving an active `VACATION`/`SICK` request sets the employee status accordingly.
+15. **Employee self-service**: an `EMPLOYEE` may edit only the availability of, and create leave requests for, the employee profile linked to their own user; `OWNER`/`MANAGER` may act on any employee in the organization.
+16. **Dismissal vs deletion**: `dismissEmployee` is a soft delete that sets `status = DISMISSED`; `deleteEmployee` removes the record.
+17. **Draft before publish**: Schedules must be in `DRAFT` status before they can be `PUBLISHED`. Published schedules are immutable (archive and create new).
 
 ## Enums
 
@@ -246,5 +259,14 @@ erDiagram
 ### ShiftAssignmentStatus
 `ASSIGNED` | `CONFIRMED` | `DECLINED` | `SWAPPED` | `NO_SHOW` | `COMPLETED`
 
-### LeaveRequestStatus
+### EmployeeStatus
+`WORKING` | `VACATION` | `SICK` | `DISMISSED`
+
+### AvailabilityType
+`UNAVAILABLE` | `AVAILABLE` | `AVAILABLE_AFTER`
+
+### LeaveType
+`VACATION` | `DAY_OFF` | `SICK` | `UNPAID` | `OTHER`
+
+### LeaveStatus
 `PENDING` | `APPROVED` | `REJECTED` | `CANCELLED`
