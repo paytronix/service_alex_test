@@ -122,6 +122,6 @@ export function roundHours(minutes: number): number {
   return round2(minutes / 60);
 }
 
-function round2(value: number): number {
+export function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }

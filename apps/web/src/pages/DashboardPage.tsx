@@ -7,9 +7,14 @@ import {
   CREATE_ORGANIZATION_MUTATION,
   INVITE_MUTATION,
   ORGANIZATION_MEMBERS_QUERY,
+  DASHBOARD_SUMMARY_QUERY,
 } from "../lib/graphql";
 import { NotificationBellContainer } from "../components/notifications/NotificationBellContainer";
 import { canViewAuditLog } from "../components/notifications/permissions";
+import { canViewDashboardSummary, canViewReports } from "../components/reports/permissions";
+import { DashboardSummaryCards } from "../components/reports/DashboardSummaryCards";
+import { RecentChangesList } from "../components/reports/RecentChangesList";
+import type { DashboardSummaryDto } from "@shiftflow/shared";
 
 interface Organization {
   id: string;
@@ -88,6 +93,12 @@ export function DashboardPage() {
   const activeOrg = orgs.find((org) => org.id === selectedOrg) ?? orgs[0];
   const activeOrgId = activeOrg?.id ?? null;
   const currentRole = activeOrg?.role;
+  const canSeeSummary = canViewDashboardSummary(currentRole);
+  const { data: summaryData, loading: summaryLoading, error: summaryError } =
+    useQuery<{ dashboardSummary: DashboardSummaryDto }>(DASHBOARD_SUMMARY_QUERY, {
+      variables: { organizationId: activeOrgId },
+      skip: !activeOrgId || !canSeeSummary,
+    });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -112,6 +123,11 @@ export function DashboardPage() {
                 Audit Log
               </Link>
             )}
+            {(canViewReports(currentRole) || currentRole === "EMPLOYEE") && (
+              <Link to="/reports" className="text-sm text-primary-600 hover:underline">
+                Reports
+              </Link>
+            )}
             <NotificationBellContainer organizationId={activeOrgId} />
             <span className="text-sm text-gray-600">
               {user?.firstName} {user?.lastName}
@@ -127,6 +143,27 @@ export function DashboardPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
+        {canSeeSummary && (
+          <section className="mb-8 space-y-4">
+            <div>
+              <h2 className="text-2xl font-semibold">Dashboard summary</h2>
+              <p className="text-sm text-gray-500">
+                Today&apos;s staffing and recent schedule changes
+              </p>
+            </div>
+            <DashboardSummaryCards
+              summary={summaryData?.dashboardSummary}
+              loading={summaryLoading}
+              error={summaryError?.message}
+            />
+            {summaryData?.dashboardSummary && (
+              <div className="rounded-lg bg-white p-6 shadow">
+                <h3 className="mb-4 text-lg font-semibold">Recent changes</h3>
+                <RecentChangesList changes={summaryData.dashboardSummary.recentChanges} />
+              </div>
+            )}
+          </section>
+        )}
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Organizations</h2>
           <button

@@ -9,6 +9,7 @@ import { EmployeesPage } from "./pages/EmployeesPage";
 import { SchedulerPage } from "./pages/SchedulerPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { AuditLogPage } from "./pages/AuditLogPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export function App() {
@@ -63,6 +64,14 @@ export function App() {
         element={
           <ProtectedRoute>
             <AuditLogPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <ReportsPage />
           </ProtectedRoute>
         }
       />

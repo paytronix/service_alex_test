@@ -89,6 +89,7 @@ export {
   periodKey,
   fillRatePercent,
   roundHours,
+  round2,
 } from "./reports";
 export type {
   ReportPeriodDto,

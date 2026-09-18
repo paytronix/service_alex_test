@@ -212,11 +212,28 @@ the user who performed the action is never notified about it.
   PostgreSQL aggregation
 - [x] CSV, Excel and PDF exports at `GET /api/reports/export` and through the `exportReport` query
 - [x] Dashboard summary with attendance, open requests, fill rate and recent schedule changes
+- [x] Reports dashboard with summary cards, recent changes, report tabs, filters and charts
+- [x] Frontend routes at `/dashboard` (summary cards) and `/reports` (work-hours, workload and
+  fill-rate tabs)
+
+### GraphQL operations
+
+`workHoursReport`, `employeeWorkloadReport`, `scheduleFillRateReport`, `dashboardSummary`, and
+`exportReport` are available to API clients. The primary export path for the web application is
+`GET /api/reports/export`, authenticated with a JWT and restricted to Owners and Managers; the
+response is an attachment with `Content-Disposition`. The `exportReport` GraphQL operation is an
+alternative for API clients and returns the generated file as base64.
 
 Report RBAC is intentionally separate from schedule-management permissions: Owners and Managers
 may read every report and export; Supervisors may read all reports but cannot export; Employees
 may read only their own work-hours report and cannot read workload, fill-rate, dashboard or export
 data. Every report query and export also requires membership in the requested organization.
+
+Report hours include assignments from published schedules by default. Passing `includeDrafts` also
+includes draft schedules. Assignment-level time and break overrides are respected, and shifts
+crossing midnight use the shared `paidMinutes` helper. All assignment statuses are counted.
+Exports are available as CSV, Excel, and PDF files. The web application uses `recharts` for report
+charts; the backend uses `exceljs` and `pdfkit` for generated files.
 
 ### Environment variables (Epic 7)
 

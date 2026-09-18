@@ -401,6 +401,160 @@ export const EMPLOYEES_QUERY = gql`
   }
 `;
 
+// ─── Reports (Epic 8) ───────────────────────────────────────
+
+export const DASHBOARD_SUMMARY_QUERY = gql`
+  query DashboardSummary($organizationId: String!) {
+    dashboardSummary(organizationId: $organizationId) {
+      date
+      workingToday
+      absentToday
+      openRequests
+      openShifts
+      fillRatePercentThisWeek
+      recentChanges {
+        id
+        changeType
+        date
+        scheduleId
+        previousEmployeeName
+        newEmployeeName
+        changedByName
+        changedAt
+      }
+    }
+  }
+`;
+
+export const WORK_HOURS_REPORT_QUERY = gql`
+  query WorkHoursReport(
+    $organizationId: String!
+    $from: String!
+    $to: String!
+    $granularity: ReportGranularity
+    $employeeId: String
+    $departmentId: String
+    $roleId: String
+    $includeDrafts: Boolean
+  ) {
+    workHoursReport(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      granularity: $granularity
+      employeeId: $employeeId
+      departmentId: $departmentId
+      roleId: $roleId
+      includeDrafts: $includeDrafts
+    ) {
+      from
+      to
+      granularity
+      rows {
+        employeeId
+        employeeName
+        departmentName
+        roleName
+        period
+        shiftCount
+        totalHours
+      }
+      totalHours
+      totalShifts
+    }
+  }
+`;
+
+export const EMPLOYEE_WORKLOAD_REPORT_QUERY = gql`
+  query EmployeeWorkloadReport(
+    $organizationId: String!
+    $from: String!
+    $to: String!
+    $departmentId: String
+    $roleId: String
+    $includeDrafts: Boolean
+  ) {
+    employeeWorkloadReport(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      departmentId: $departmentId
+      roleId: $roleId
+      includeDrafts: $includeDrafts
+    ) {
+      from
+      to
+      rows {
+        employeeId
+        employeeName
+        departmentName
+        roleName
+        totalHours
+        shiftCount
+        weeksInPeriod
+        avgWeeklyHours
+        weeklyLimitHours
+        overtimeHours
+        utilizationPercent
+        isOverloaded
+        rank
+      }
+      totalHours
+      averageHours
+    }
+  }
+`;
+
+export const SCHEDULE_FILL_RATE_REPORT_QUERY = gql`
+  query ScheduleFillRateReport(
+    $organizationId: String!
+    $from: String
+    $to: String
+    $weekStartDate: String
+    $includeDrafts: Boolean
+  ) {
+    scheduleFillRateReport(
+      organizationId: $organizationId
+      from: $from
+      to: $to
+      weekStartDate: $weekStartDate
+      includeDrafts: $includeDrafts
+    ) {
+      from
+      to
+      requiredCount
+      assignedCount
+      filledCount
+      openCount
+      fillRatePercent
+      byDate {
+        key
+        label
+        requiredCount
+        assignedCount
+        filledCount
+        fillRatePercent
+      }
+      byShift {
+        key
+        label
+        requiredCount
+        assignedCount
+        filledCount
+        fillRatePercent
+      }
+      byRole {
+        key
+        label
+        requiredCount
+        assignedCount
+        filledCount
+        fillRatePercent
+      }
+    }
+  }
+`;
+
 export const EMPLOYEE_QUERY = gql`
   query Employee($organizationId: String!, $id: String!) {
     employee(organizationId: $organizationId, id: $id) {

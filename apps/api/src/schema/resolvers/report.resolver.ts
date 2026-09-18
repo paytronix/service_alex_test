@@ -141,8 +141,8 @@ builder.queryField("dashboardSummary", (t) =>
     authScopes: { authenticated: true },
     args: { organizationId: t.arg.string({ required: true }) },
     resolve: async (_root, args, ctx) => {
-      const role = await requireReportReader(ctx, args.organizationId);
-      return analyticsService.dashboardSummary(args.organizationId, role);
+      await requireReportReader(ctx, args.organizationId);
+      return analyticsService.dashboardSummary(args.organizationId);
     },
   }),
 );

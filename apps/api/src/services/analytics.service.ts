@@ -1,7 +1,6 @@
 import {
   EmployeeStatus,
   LeaveStatus,
-  MembershipRole,
   Prisma,
   ScheduleStatus,
 } from "@prisma/client";
@@ -9,6 +8,7 @@ import {
   addDays,
   fillRatePercent,
   ReportGranularity,
+  round2,
   roundHours,
   startOfWeek,
   toDateOnly,
@@ -256,7 +256,6 @@ export class AnalyticsService {
 
   async dashboardSummary(
     organizationId: string,
-    _role: MembershipRole,
   ): Promise<DashboardSummaryDto> {
     const organization = await prisma.organization.findUniqueOrThrow({
       where: { id: organizationId },
@@ -450,10 +449,6 @@ function bucketRows(
     buckets.set(key, bucket);
   }
   return [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-}
-
-function round2(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export const analyticsService = new AnalyticsService();
